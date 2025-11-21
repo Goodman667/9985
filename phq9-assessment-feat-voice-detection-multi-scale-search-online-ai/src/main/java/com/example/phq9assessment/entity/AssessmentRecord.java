@@ -74,7 +74,8 @@ public class AssessmentRecord {
     @Column(name = "answers_json", length = 2000)
     private String answersJson;
     
-    @Column(name = "camera_data", length = 1000)
+    @Lob
+    @Column(name = "camera_data", columnDefinition = "TEXT")
     private String cameraData;
 
     public AssessmentRecord() {
