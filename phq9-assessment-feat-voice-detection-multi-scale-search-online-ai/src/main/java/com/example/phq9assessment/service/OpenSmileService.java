@@ -197,19 +197,33 @@ public class OpenSmileService {
             
             Process process = pb.start();
             
-            // 读取输出（避免进程阻塞）
+            // 读取输出（用于调试）
             BufferedReader reader = new BufferedReader(
                 new InputStreamReader(process.getInputStream())
             );
+            StringBuilder output = new StringBuilder();
             String line;
             while ((line = reader.readLine()) != null) {
-                // 可选：记录日志
+                output.append(line).append("\n");
             }
             
             int exitCode = process.waitFor();
+            
+            // 如果失败，记录输出信息用于调试
+            if (exitCode != 0) {
+                System.err.println("OpenSMILE执行失败，退出码: " + exitCode);
+                System.err.println("配置文件路径: " + configFilePath);
+                System.err.println("配置文件是否存在: " + new File(configFilePath).exists());
+                System.err.println("OpenSMILE可执行文件是否存在: " + new File(opensmilePath).exists());
+                System.err.println("命令: " + String.join(" ", command));
+                System.err.println("输出: " + output.toString());
+            }
+            
             return exitCode == 0;
             
         } catch (Exception e) {
+            System.err.println("OpenSMILE执行异常: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
@@ -218,27 +232,61 @@ public class OpenSmileService {
      * 获取配置文件路径
      */
     private String getConfigFilePath() {
-        if (configPath != null && !configPath.trim().isEmpty()) {
-            return configPath;
-        }
-        
-        // 使用默认配置文件（通常在openSMILE安装目录下）
-        String opensmileDir = new File(opensmilePath).getParent();
         String configFileName;
+        String configSubDir = "";
         
         if ("eGeMAPSv02".equals(configType)) {
             configFileName = "eGeMAPSv02.conf";
+            configSubDir = "egemaps/v02/";
         } else if ("GeMAPSv01b".equals(configType)) {
             configFileName = "GeMAPSv01b.conf";
+            configSubDir = "gemaps/v01b/";
         } else if ("emobase".equals(configType)) {
             configFileName = "emobase.conf";
         } else if ("ComParE_2016".equals(configType)) {
             configFileName = "ComParE_2016.conf";
         } else {
             configFileName = "eGeMAPSv02.conf"; // 默认
+            configSubDir = "egemaps/v02/";
         }
         
-        return opensmileDir + "/../config/" + configFileName;
+        if (configPath != null && !configPath.trim().isEmpty()) {
+            // 如果配置了config.path，它应该是配置文件目录
+            String normalizedConfigPath = configPath.replace('\\', '/');
+            if (!normalizedConfigPath.endsWith("/")) {
+                normalizedConfigPath += "/";
+            }
+            return normalizedConfigPath + configSubDir + configFileName;
+        }
+        
+        // 使用默认配置文件（通常在openSMILE安装目录下）
+        String opensmileDir = new File(opensmilePath).getParent();
+        if (opensmileDir == null) {
+            opensmileDir = "";
+        }
+        
+        // 标准化路径分隔符
+        String normalizedOpensmileDir = opensmileDir.replace('\\', '/');
+        
+        // 尝试多种可能的配置文件位置
+        String[] possiblePaths = {
+            normalizedOpensmileDir + "/../config/" + configSubDir + configFileName,
+            normalizedOpensmileDir + "/../../config/" + configSubDir + configFileName,
+            normalizedOpensmileDir + "/config/" + configSubDir + configFileName,
+            normalizedOpensmileDir + "/../share/opensmile/config/" + configSubDir + configFileName,
+            "/usr/local/share/opensmile/config/" + configSubDir + configFileName,
+            "/usr/share/opensmile/config/" + configSubDir + configFileName
+        };
+        
+        // 返回第一个存在的配置文件路径，如果都不存在则返回第一个
+        for (String path : possiblePaths) {
+            File configFile = new File(path);
+            if (configFile.exists()) {
+                return path;
+            }
+        }
+        
+        return possiblePaths[0]; // 返回默认路径
     }
     
     /**
@@ -417,11 +465,98 @@ public class OpenSmileService {
      */
     public boolean isAvailable() {
         if (!opensmileEnabled) {
+            System.out.println("OpenSMILE未启用");
             return false;
         }
         
         File opensmileFile = new File(opensmilePath);
-        return opensmileFile.exists() && opensmileFile.canExecute();
+        boolean opensmileExists = opensmileFile.exists();
+        boolean opensmileExecutable = opensmileFile.canExecute();
+        
+        System.out.println("OpenSMILE可执行文件路径: " + opensmilePath);
+        System.out.println("OpenSMILE可执行文件存在: " + opensmileExists);
+        System.out.println("OpenSMILE可执行文件可执行: " + opensmileExecutable);
+        
+        if (!opensmileExists) {
+            System.err.println("OpenSMILE可执行文件不存在: " + opensmilePath);
+            return false;
+        }
+        
+        if (!opensmileExecutable) {
+            System.err.println("OpenSMILE可执行文件不可执行: " + opensmilePath);
+            return false;
+        }
+        
+        // 检查配置文件
+        String configFilePath = getConfigFilePath();
+        File configFile = new File(configFilePath);
+        boolean configExists = configFile.exists();
+        
+        System.out.println("OpenSMILE配置文件路径: " + configFilePath);
+        System.out.println("OpenSMILE配置文件存在: " + configExists);
+        
+        if (!configExists) {
+            System.err.println("OpenSMILE配置文件不存在: " + configFilePath);
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * 测试OpenSMILE配置并输出详细信息
+     */
+    public String testConfiguration() {
+        StringBuilder info = new StringBuilder();
+        
+        info.append("=== OpenSMILE配置测试 ===\n");
+        info.append("启用状态: ").append(opensmileEnabled ? "已启用" : "未启用").append("\n");
+        
+        if (!opensmileEnabled) {
+            info.append("OpenSMILE未启用，请在application.properties中设置 ai.opensmile.enabled=true\n");
+            return info.toString();
+        }
+        
+        info.append("可执行文件路径: ").append(opensmilePath).append("\n");
+        
+        File opensmileFile = new File(opensmilePath);
+        info.append("可执行文件存在: ").append(opensmileFile.exists()).append("\n");
+        info.append("可执行文件可执行: ").append(opensmileFile.canExecute()).append("\n");
+        
+        info.append("配置类型: ").append(configType).append("\n");
+        info.append("配置目录路径: ").append(configPath).append("\n");
+        
+        String configFilePath = getConfigFilePath();
+        info.append("完整配置文件路径: ").append(configFilePath).append("\n");
+        
+        File configFile = new File(configFilePath);
+        info.append("配置文件存在: ").append(configFile.exists()).append("\n");
+        
+        if (configFile.exists()) {
+            info.append("配置文件大小: ").append(configFile.length()).append(" bytes\n");
+        }
+        
+        // 尝试列出配置目录内容（用于调试）
+        if (configPath != null && !configPath.trim().isEmpty()) {
+            File configDir = new File(configPath);
+            if (configDir.exists() && configDir.isDirectory()) {
+                info.append("配置目录内容:\n");
+                File[] files = configDir.listFiles();
+                if (files != null) {
+                    for (File file : files) {
+                        if (file.isDirectory()) {
+                            info.append("  [DIR]  ").append(file.getName()).append("\n");
+                        } else {
+                            info.append("  [FILE] ").append(file.getName()).append("\n");
+                        }
+                    }
+                }
+            } else {
+                info.append("配置目录不存在或不是目录\n");
+            }
+        }
+        
+        return info.toString();
     }
     
     /**
