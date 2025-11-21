@@ -70,6 +70,12 @@ public class AssessmentRecord {
     
     @Column(name = "voice_emotion_score")
     private Double voiceEmotionScore;
+    
+    @Column(name = "answers_json", length = 2000)
+    private String answersJson;
+    
+    @Column(name = "camera_data", length = 1000)
+    private String cameraData;
 
     public AssessmentRecord() {
         this.createdAt = LocalDateTime.now();
@@ -242,5 +248,21 @@ public class AssessmentRecord {
 
     public void setVoiceEmotionScore(Double voiceEmotionScore) {
         this.voiceEmotionScore = voiceEmotionScore;
+    }
+
+    public String getAnswersJson() {
+        return answersJson;
+    }
+
+    public void setAnswersJson(String answersJson) {
+        this.answersJson = answersJson;
+    }
+
+    public String getCameraData() {
+        return cameraData;
+    }
+
+    public void setCameraData(String cameraData) {
+        this.cameraData = cameraData;
     }
 }
