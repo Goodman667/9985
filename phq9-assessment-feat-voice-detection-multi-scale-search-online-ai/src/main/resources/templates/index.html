@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能多量表评估系统 - AI驱动</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script>
+        window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 800px;
+        }
+        h1, h2, h3 {
+            color: #1a2a4c;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .ai-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .radio-group {
+            display: flex;
+            justify-content: space-between;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 5px;
+            background-color: #f9f9f9;
+        }
+        .radio-option {
+            flex: 1;
+            text-align: center;
+        }
+        .radio-option input[type="radio"] {
+            display: none;
+        }
+        .radio-option label {
+            margin: 0;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: block;
+            transition: all 0.2s ease-in-out;
+            font-size: 14px;
+        }
+        .radio-option input[type="radio"]:checked + label {
+            background-color: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+        .sentiment-box {
+            background-color: #f0f4ff;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .sentiment-box textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .result-box {
+            text-align: center;
+        }
+        .ai-insights {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .insight-card {
+            background-color: white;
+            color: #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .insight-card h4 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        .ml-risk-score {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .risk-low { background-color: #4CAF50; color: white; }
+        .risk-medium { background-color: #FF9800; color: white; }
+        .risk-high { background-color: #F44336; color: white; }
+        .level {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .level.minimal { color: #4CAF50; }
+        .level.mild { color: #FFEB3B; color: #F57C00; }
+        .level.moderate { color: #FF9800; }
+        .level.moderately-severe { color: #F44336; }
+        .level.severe { color: #B71C1C; }
+        .sentiment-result {
+            background-color: #e8f5e9;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #4CAF50;
+        }
+        .sentiment-negative {
+            background-color: #ffebee;
+            border-left-color: #F44336;
+        }
+        .recommendations {
+            text-align: left;
+            margin: 20px 0;
+        }
+        .recommendation-item {
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            transition: transform 0.2s;
+        }
+        .recommendation-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .priority-critical {
+            border-left: 4px solid #B71C1C;
+            background-color: #ffebee;
+        }
+        .priority-high {
+            border-left: 4px solid #F44336;
+        }
+        .priority-medium {
+            border-left: 4px solid #FF9800;
+        }
+        .chart-container {
+            max-width: 400px;
+            margin: 20px auto;
+        }
+        .anomaly-warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .trend-indicator {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 0 10px;
+        }
+        .trend-improving {
+            background-color: #c8e6c9;
+            color: #2e7d32;
+        }
+        .trend-stable {
+            background-color: #fff9c4;
+            color: #f57f17;
+        }
+        .trend-worsening {
+            background-color: #ffcdd2;
+            color: #c62828;
+        }
+        .alert-box {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 2px solid #ef5350;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .suggestion-box {
+            text-align: left;
+            background-color: #eef2ff;
+            border-left: 5px solid #5c7cfa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            padding: 10px 20px;
+            background-color: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: transform 0.2s;
+        }
+        .back-link:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 评估表单 -->
+    <div th:if="${result == null}">
+        <h1>🧠 智能多量表评估系统</h1>
+        <p style="text-align: center;">
+            <span class="ai-badge">🤖 AI + 语音识别 + 在线AI驱动</span>
+        </p>
+        
+        <div class="form-group">
+            <label for="questionnaire-select">📋 选择评估量表：</label>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <select id="questionnaire-select" style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+                    <option value="">-- 搜索或选择量表 --</option>
+                    <option th:each="q : ${questionnaires}" th:value="${q.code}" th:text="${q.name + ' (' + q.totalQuestions + '题)'}"></option>
+                </select>
+                <input type="text" id="search-input" placeholder="搜索量表..." style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+            </div>
+            <div id="search-results" style="display: none; background-color: #f5f5f5; border-radius: 6px; max-height: 200px; overflow-y: auto; margin-bottom: 10px;"></div>
+        </div>
+        
+        <p style="text-align: center;">在过去的两周里，您是否经常受到以下问题的困扰？请选择最符合您情况的选项。</p>
+        
+        <form action="/submit" method="post">
+            <input type="hidden" id="questionnaireCode" name="questionnaireCode" value="PHQ-9">
+            <input type="hidden" id="voiceAudio" name="voiceAudio" value="">
+            <div class="form-group">
+                <label>1. 做事时提不起劲或没有兴趣</label>
+                <div class="radio-group">
+                    <div class="radio-option"><input type="radio" id="q1_0" name="q1" value="0" required><label for="q1_0">完全没有</label></div>
+                    <div class="radio-option"><input type="radio" id="q1_1" name="q1" value="1"><label for="q1_1">有几天</label></div>
+                    <div class="radio-option"><input type="radio" id="q1_2" name="q1" value="2"><label for="q1_2">一半以上</label></div>
+                    <div class="radio-option"><input type="radio" id="q1_3" name="q1" value="3"><label for="q1_3">几乎每天</label></div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>2. 感到心情低落、沮丧或绝望</label>
+                <div class="radio-group">
+                    <div class="radio-option"><input type="radio" id="q2_0" name="q2" value="0" required><label for="q2_0">完全没有</label></div>
+                    <div class="radio-option"><input type="radio" id="q2_1" name="q2" value="1"><label for="q2_1">有几天</label></div>
+                    <div class="radio-option"><input type="radio" id="q2_2" name="q2" value="2"><label for="q2_2">一半以上</label></div>
+                    <div class="radio-option"><input type="radio" id="q2_3" name="q2" value="3"><label for="q2_3">几乎每天</label></div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>3. 入睡困难、睡不安稳或睡眠过多</label>
+                <div class="radio-group">
+                    <div class="radio-option"><input type="radio" id="q3_0" name="q3" value="0" required><label for="q3_0">完全没有</label></div>
+                    <div class="radio-option"><input type="radio" id="q3_1" name="q3" value="1"><label for="q3_1">有几天</label></div>
+                    <div class="radio-option"><input type="radio" id="q3_2" name="q3" value="2"><label for="q3_2">一半以上</label></div>
+                    <div class="radio-option"><input type="radio" id="q3_3" name="q3" value="3"><label for="q3_3">几乎每天</label></div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>4. 感到疲惫或没有活力</label>
+                <div class="radio-group">
+                    <div class="radio-option"><input type="radio" id="q4_0" name="q4" value="0" required><label for="q4_0">完全没有</label></div>
+                    <div class="radio-option"><input type="radio" id="q4_1" name="q4" value="1"><label for="q4_1">有几天</label></div>
+                    <div class="radio-option"><input type="radio" id="q4_2" name="q4" value="2"><label for="q4_2">一半以上</label></div>
+                    <div class="radio-option"><input type="radio" id="q4_3" name="q4" value="3"><label for="q4_3">几乎每天</label></div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>5. 食欲不振或暴饮暴食</label>
+                <div class="radio-group">
+                    <div class="radio-option"><input type="radio" id="q5_0" name="q5" value="0" required><label for="q5_0">完全没有</label></div>
+                    <div class="radio-option"><input type="radio" id="q5_1" name="q5" value="1"><label for="q5_1">有几天</label></div>
+                    <div class="radio-option"><input type="radio" id="q5_2" name="q5" value="2"><label for="q5_2">一半以上</label></div>
+                    <div class="radio-option"><input type="radio" id="q5_3" name="q5" value="3"><label for="q5_3">几乎每天</label></div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>6. 感觉自己很糟或觉得自己很失败，让自己或家人失望</label>
+                <div class="radio-group">
+                    <div class="radio-option"><input type="radio" id="q6_0" name="q6" value="0" required><label for="q6_0">完全没有</label></div>
+                    <div class="radio-option"><input type="radio" id="q6_1" name="q6" value="1"><label for="q6_1">有几天</label></div>
+                    <div class="radio-option"><input type="radio" id="q6_2" name="q6" value="2"><label for="q6_2">一半以上</label></div>
+                    <div class="radio-option"><input type="radio" id="q6_3" name="q6" value="3"><label for="q6_3">几乎每天</label></div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>7. 对事物专注有困难，例如看报纸或看电视</label>
+                <div class="radio-group">
+                    <div class="radio-option"><input type="radio" id="q7_0" name="q7" value="0" required><label for="q7_0">完全没有</label></div>
+                    <div class="radio-option"><input type="radio" id="q7_1" name="q7" value="1"><label for="q7_1">有几天</label></div>
+                    <div class="radio-option"><input type="radio" id="q7_2" name="q7" value="2"><label for="q7_2">一半以上</label></div>
+                    <div class="radio-option"><input type="radio" id="q7_3" name="q7" value="3"><label for="q7_3">几乎每天</label></div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>8. 行动或说话速度变得缓慢或相反地感觉坐立不安、烦躁</label>
+                <div class="radio-group">
+                    <div class="radio-option"><input type="radio" id="q8_0" name="q8" value="0" required><label for="q8_0">完全没有</label></div>
+                    <div class="radio-option"><input type="radio" id="q8_1" name="q8" value="1"><label for="q8_1">有几天</label></div>
+                    <div class="radio-option"><input type="radio" id="q8_2" name="q8" value="2"><label for="q8_2">一半以上</label></div>
+                    <div class="radio-option"><input type="radio" id="q8_3" name="q8" value="3"><label for="q8_3">几乎每天</label></div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>9. 有不如死掉或用某种方式伤害自己的念头</label>
+                <div class="radio-group">
+                    <div class="radio-option"><input type="radio" id="q9_0" name="q9" value="0" required><label for="q9_0">完全没有</label></div>
+                    <div class="radio-option"><input type="radio" id="q9_1" name="q9" value="1"><label for="q9_1">有几天</label></div>
+                    <div class="radio-option"><input type="radio" id="q9_2" name="q9" value="2"><label for="q9_2">一半以上</label></div>
+                    <div class="radio-option"><input type="radio" id="q9_3" name="q9" value="3"><label for="q9_3">几乎每天</label></div>
+                </div>
+            </div>
+
+            <div class="sentiment-box">
+                <h3>🎤 语音情感分析（可选）</h3>
+                <p>点击下方按钮录制语音，AI将分析您的语调和情绪：</p>
+                <div style="display: flex; gap: 10px; margin: 15px 0;">
+                    <button type="button" id="voice-record-btn" class="submit-btn" style="background-color: #667eea; flex: 1;">🎤 开始录音</button>
+                    <button type="button" id="voice-stop-btn" class="submit-btn" style="background-color: #999; flex: 1; display: none;">⏹️ 停止录音</button>
+                </div>
+                <div id="voice-status" style="text-align: center; color: #666; font-size: 12px; margin: 10px 0;"></div>
+                <audio id="voice-playback" controls style="width: 100%; margin: 10px 0; display: none;"></audio>
+            </div>
+
+            <div class="sentiment-box">
+                <h3>💬 文字情感分析（可选）</h3>
+                <p>请用您自己的话描述一下您最近的感受和心情，我们的AI将分析您的文字情感：</p>
+                <textarea name="sentimentText" placeholder="例如：最近总是感觉很累，对什么都提不起兴趣，晚上也睡不好..."></textarea>
+            </div>
+
+            <button type="submit" class="submit-btn">🚀 开始智能分析</button>
+        </form>
+    </div>
+
+    <!-- 评估结果 -->
+    <div th:if="${result != null}" class="result-box">
+        <h1>🎯 您的智能评估结果</h1>
+        <p><span class="ai-badge">🤖 AI驱动的多维度分析</span></p>
+
+        <p class="level" th:classappend="${result.level}">
+            PHQ-9得分：<strong th:text="${result.totalScore}">0</strong> / 27<br/>
+            风险等级：<span th:text="${result.levelText}">未知</span>
+        </p>
+
+        <!-- AI机器学习风险评分 -->
+        <div class="ai-insights">
+            <h3>🤖 机器学习智能风险评估</h3>
+            <div class="insight-card">
+                <h4>综合风险评分</h4>
+                <span class="ml-risk-score" 
+                      th:classappend="${result.mlRiskScore < 0.4 ? 'risk-low' : (result.mlRiskScore < 0.7 ? 'risk-medium' : 'risk-high')}">
+                    <span th:text="${#numbers.formatDecimal(result.mlRiskScore * 100, 1, 1)}">0</span>%
+                </span>
+                <p>风险等级：<strong th:text="${result.mlRiskLevel}">-</strong></p>
+                <small>基于多维度特征的机器学习预测模型</small>
+            </div>
+        </div>
+
+        <!-- 情感分析结果 -->
+        <div th:if="${result.sentimentAnalysis != null and result.sentimentAnalysis.score != 0}" 
+             class="sentiment-result"
+             th:classappend="${result.sentimentAnalysis.sentiment == 'negative' ? 'sentiment-negative' : ''}">
+            <h4>📊 NLP情感分析结果</h4>
+            <p>情感倾向：<strong th:text="${result.sentimentAnalysis.sentimentText}">-</strong>
+               （得分：<span th:text="${#numbers.formatDecimal(result.sentimentAnalysis.score, 1, 2)}">0</span>）</p>
+            <p th:if="${not #lists.isEmpty(result.sentimentAnalysis.negativeWords)}">
+                检测到的消极词汇：<span th:text="${#strings.listJoin(result.sentimentAnalysis.negativeWords, '、')}"></span>
+            </p>
+            <p th:if="${not #lists.isEmpty(result.sentimentAnalysis.keywords)}">
+                关键情绪标签：<span th:text="${#strings.listJoin(result.sentimentAnalysis.keywords, '、')}"></span>
+            </p>
+        </div>
+
+        <!-- 用户聚类结果 -->
+        <div class="insight-card" th:if="${result.clusterResult != null}">
+            <h4>👥 智能分群分析</h4>
+            <p>您被归类为：<strong th:text="${result.clusterResult.clusterText}">-</strong></p>
+            <p th:text="${result.clusterResult.intervention}">-</p>
+        </div>
+
+        <!-- 趋势分析 -->
+        <div class="insight-card" th:if="${result.hasHistoricalData and result.trendAnalysis != null}">
+            <h4>📈 历史趋势分析</h4>
+            <p>
+                趋势方向：
+                <span class="trend-indicator" 
+                      th:classappend="${result.trendAnalysis.trend == 'improving' ? 'trend-improving' : (result.trendAnalysis.trend == 'worsening' ? 'trend-worsening' : 'trend-stable')}">
+                    <span th:text="${result.trendAnalysis.trendText}">-</span>
+                </span>
+            </p>
+            <p th:if="${result.trendAnalysis.predictedNextScore != null}">
+                预测下次评分：约 <span th:text="${#numbers.formatDecimal(result.trendAnalysis.predictedNextScore, 1, 0)}">0</span> 分
+            </p>
+            <div class="chart-container" th:if="${result.historicalScores != null and #lists.size(result.historicalScores) > 1}">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 异常检测警告 -->
+        <div class="anomaly-warning" th:if="${result.anomalyDetection != null and result.anomalyDetection.anomalous}">
+            <h4>⚠️ 答题模式提醒</h4>
+            <ul>
+                <li th:each="anomaly : ${result.anomalyDetection.anomalies}" th:text="${anomaly}"></li>
+            </ul>
+        </div>
+
+        <!-- 个性化建议 -->
+        <div class="suggestion-box">
+            <h3>💡 传统评估建议</h3>
+            <p th:utext="${#strings.replace(result.suggestion, '\n', '&lt;br/&gt;')}"></p>
+        </div>
+
+        <!-- AI智能推荐 -->
+        <div class="recommendations" th:if="${result.recommendations != null}">
+            <h3>🎯 AI智能干预推荐</h3>
+            <div th:each="rec : ${result.recommendations}" 
+                 class="recommendation-item"
+                 th:classappend="${rec.priorityClass}">
+                <h4 th:text="${rec.title}">-</h4>
+                <p th:text="${rec.description}">-</p>
+                <small>优先级：<span th:text="${rec.priorityText}">-</span></small>
+            </div>
+        </div>
+
+        <!-- 语音分析结果 -->
+        <div th:if="${result.voiceAnalysis != null}" class="ai-insights">
+            <h3>🎤 语音情感分析</h3>
+            <div class="insight-card">
+                <div th:if="${result.voiceAnalysis.usingOpenSmile}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 5px 10px; border-radius: 5px; display: inline-block; margin-bottom: 10px; font-size: 12px;">
+                    <strong>✨ OpenSMILE专业分析</strong> - <span th:text="${result.voiceAnalysis.openSmileConfigType}">-</span> (<span th:text="${result.voiceAnalysis.featureCount}">-</span>个特征)
+                </div>
+                <h4>语音情绪评分</h4>
+                <p>情感分数：<strong th:text="${#numbers.formatDecimal(result.voiceAnalysis.emotionScore, 1, 2)}">0</strong></p>
+                <p th:if="${result.voiceAnalysis.usingOpenSmile}">抑郁风险等级：<strong th:text="${result.voiceAnalysis.emotionCategory}">-</strong></p>
+                <p th:unless="${result.voiceAnalysis.usingOpenSmile}">情感类别：<strong th:text="${result.voiceAnalysis.emotionCategory}">-</strong></p>
+                <p>识别置信度：<strong th:text="${#numbers.formatDecimal(result.voiceAnalysis.confidence * 100, 1, 1)} + '%'">-</strong></p>
+                <div th:if="${result.voiceAnalysis.features != null}">
+                    <small th:if="${!result.voiceAnalysis.usingOpenSmile}">
+                        音量：<span th:text="${#numbers.formatDecimal(result.voiceAnalysis.features.volume, 1, 2)}">-</span> |
+                        音调：<span th:text="${#numbers.formatDecimal(result.voiceAnalysis.features.pitch, 1, 2)}">-</span> |
+                        语速：<span th:text="${#numbers.formatDecimal(result.voiceAnalysis.features.pace, 1, 2)}">-</span>
+                    </small>
+                    <div th:if="${result.voiceAnalysis.usingOpenSmile}" style="margin-top: 10px; background-color: #f9f9f9; padding: 10px; border-radius: 5px;">
+                        <small style="color: #666;">
+                            <strong>OpenSMILE声学特征提取：</strong><br/>
+                            已从语音中提取 <strong th:text="${result.voiceAnalysis.featureCount}">-</strong> 个专业声学特征，
+                            包括基频(F0)、响度、音质微扰(Jitter/Shimmer)、谐噪比(HNR)等关键指标，
+                            这些特征在临床研究中被广泛用于抑郁症和情绪障碍的辅助诊断。
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 在线AI增强分析 -->
+        <div th:if="${result.aiEnhancement != null and result.aiEnhancement.successful}" class="ai-insights">
+            <h3>🌐 在线AI增强分析</h3>
+            <div class="insight-card">
+                <h4>智能推理分析</h4>
+                <p>供应商：<strong th:text="${result.aiEnhancement.provider}">-</strong>
+                   <span th:if="${result.aiEnhancement.onlineAnalysis}" style="color: #4CAF50; font-size: 12px;">(在线)</span>
+                   <span th:unless="${result.aiEnhancement.onlineAnalysis}" style="color: #FF9800; font-size: 12px;">(本地)</span>
+                </p>
+                <p th:text="${result.aiEnhancement.enhancedAnalysis}">-</p>
+            </div>
+        </div>
+
+        <!-- 高风险警告 -->
+        <div th:if="${result.highRisk}" class="alert-box">
+            <strong>⚠️ 重要提醒：检测到高风险信号</strong>
+            <p>您的测评结果显示出需要立即关注的风险。请不要独自面对，寻求帮助是勇敢和重要的第一步。</p>
+            <p><strong>全国心理援助热线：400-161-9995（24小时）</strong></p>
+            <p>北京心理危机干预热线：010-82951332</p>
+        </div>
+
+        <a href="/" class="back-link">🔄 返回，重新测评</a>
+    </div>
+</div>
+
+<script th:if="${result != null and result.historicalScores != null and #lists.size(result.historicalScores) > 1}">
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    const scores = [[${result.historicalScores}]].reverse();
+    const labels = scores.map((s, i) => `第${i+1}次`);
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'PHQ-9得分趋势',
+                data: scores,
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 27,
+                    title: {
+                        display: true,
+                        text: '得分'
+                    }
+                }
+            }
+        }
+    });
+</script>
+
+<script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
+
+    const recordBtn = document.getElementById('voice-record-btn');
+    const stopBtn = document.getElementById('voice-stop-btn');
+    const statusDiv = document.getElementById('voice-status');
+    const playback = document.getElementById('voice-playback');
+    const voiceAudioInput = document.getElementById('voiceAudio');
+
+    if (recordBtn) {
+        recordBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const base64Audio = reader.result.split(',')[1];
+                        voiceAudioInput.value = base64Audio;
+                        
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        playback.src = audioUrl;
+                        playback.style.display = 'block';
+                        statusDiv.textContent = '✅ 录音完成，已保存';
+                    };
+                    reader.readAsDataURL(audioBlob);
+                    
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                recordBtn.style.display = 'none';
+                stopBtn.style.display = 'block';
+                isRecording = true;
+                statusDiv.textContent = '🔴 正在录音...';
+            } catch (err) {
+                statusDiv.textContent = '❌ 无法访问麦克风：' + err.message;
+            }
+        });
+
+        stopBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                recordBtn.style.display = 'block';
+                stopBtn.style.display = 'none';
+                isRecording = false;
+            }
+        });
+    }
+
+    const searchInput = document.getElementById('search-input');
+    const questionnaireSelect = document.getElementById('questionnaire-select');
+    const searchResults = document.getElementById('search-results');
+    const questionnaireCodeInput = document.getElementById('questionnaireCode');
+
+    if (searchInput && questionnaireSelect) {
+        searchInput.addEventListener('input', async (e) => {
+            const keyword = e.target.value.trim();
+            if (keyword.length === 0) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch('/search-questionnaires?keyword=' + encodeURIComponent(keyword));
+                const questionnaires = await response.json();
+                
+                if (questionnaires.length > 0) {
+                    searchResults.innerHTML = questionnaires.map(q => 
+                        `<div style="padding: 10px; border-bottom: 1px solid #ddd; cursor: pointer; hover: background-color: #efefef;" 
+                              onclick="selectQuestionnaire('${q.code}', '${q.name}')">${q.name} (${q.totalQuestions}题)</div>`
+                    ).join('');
+                    searchResults.style.display = 'block';
+                } else {
+                    searchResults.innerHTML = '<div style="padding: 10px; color: #999;">未找到匹配的量表</div>';
+                    searchResults.style.display = 'block';
+                }
+            } catch (err) {
+                console.error('搜索失败:', err);
+            }
+        });
+
+        questionnaireSelect.addEventListener('change', (e) => {
+            if (e.target.value) {
+                selectQuestionnaire(e.target.value, e.target.options[e.target.selectedIndex].text);
+            }
+        });
+    }
+
+    function selectQuestionnaire(code, name) {
+        questionnaireCodeInput.value = code;
+        questionnaireSelect.value = code;
+        searchResults.style.display = 'none';
+        searchInput.value = '';
+    }
+</script>
+
+</body>
+</html>
