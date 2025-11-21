@@ -81,12 +81,22 @@ public class OpenSmileService {
             double depressionScore = calculateDepressionScore(features);
             String depressionLevel = categorizeDepressionLevel(depressionScore);
             
+            // 6. 生成结构化声学分析
+            Map<String, Double> acousticSummary = generateAcousticSummary(features);
+            Map<String, Double> emotionalIndicators = generateEmotionalIndicators(features);
+            Map<String, Object> audioStats = generateAudioStats(features, tempAudioFile);
+            Map<String, Double> topFeatures = extractTopFeatures(features, 20);
+            
             result.setSuccess(true);
             result.setFeatures(features);
             result.setDepressionScore(depressionScore);
             result.setDepressionLevel(depressionLevel);
             result.setConfigType(configType);
             result.setFeatureCount(features.size());
+            result.setAcousticSummary(acousticSummary);
+            result.setEmotionalIndicators(emotionalIndicators);
+            result.setAudioStats(audioStats);
+            result.setTopFeatures(topFeatures);
             
         } catch (Exception e) {
             result.setErrorMessage("处理异常: " + e.getMessage());
@@ -511,6 +521,235 @@ public class OpenSmileService {
     }
     
     /**
+     * 生成声学特征摘要
+     */
+    private Map<String, Double> generateAcousticSummary(Map<String, Double> features) {
+        Map<String, Double> summary = new HashMap<>();
+        
+        // 基频（Pitch）特征
+        Double f0Mean = getFeature(features, "F0semitoneFrom27.5Hz_sma3nz_amean", "F0final_sma3nz_amean");
+        Double f0Std = getFeature(features, "F0semitoneFrom27.5Hz_sma3nz_stddevNorm", "F0final_sma3nz_stddevNorm");
+        Double f0Min = getFeature(features, "F0semitoneFrom27.5Hz_sma3nz_percentile20.0", "F0final_sma3nz_percentile20.0");
+        Double f0Max = getFeature(features, "F0semitoneFrom27.5Hz_sma3nz_percentile80.0", "F0final_sma3nz_percentile80.0");
+        
+        if (f0Mean != null) {
+            summary.put("基频均值", f0Mean);
+        }
+        if (f0Std != null) {
+            summary.put("基频标准差", f0Std);
+        }
+        if (f0Min != null && f0Max != null) {
+            summary.put("基频范围", f0Max - f0Min);
+        }
+        
+        // 响度（Loudness）特征
+        Double loudnessMean = getFeature(features, "loudness_sma3_amean");
+        Double loudnessStd = getFeature(features, "loudness_sma3_stddevNorm");
+        Double loudnessMin = getFeature(features, "loudness_sma3_percentile20.0");
+        Double loudnessMax = getFeature(features, "loudness_sma3_percentile80.0");
+        
+        if (loudnessMean != null) {
+            summary.put("响度均值", loudnessMean);
+        }
+        if (loudnessStd != null) {
+            summary.put("响度变化", loudnessStd);
+        }
+        if (loudnessMin != null && loudnessMax != null) {
+            summary.put("响度范围", loudnessMax - loudnessMin);
+        }
+        
+        // 音质特征
+        Double jitter = getFeature(features, "jitterLocal_sma3nz_amean");
+        Double shimmer = getFeature(features, "shimmerLocaldB_sma3nz_amean");
+        Double hnr = getFeature(features, "HNRdBACF_sma3nz_amean");
+        
+        if (jitter != null) {
+            summary.put("音高微扰", jitter * 100.0); // 转换为百分比
+        }
+        if (shimmer != null) {
+            summary.put("振幅微扰", shimmer);
+        }
+        if (hnr != null) {
+            summary.put("谐噪比", hnr);
+        }
+        
+        // 语速相关特征（通过能量变化估计）
+        Double energyMean = getFeature(features, "pcm_RMSenergy_sma3_amean");
+        Double energyStd = getFeature(features, "pcm_RMSenergy_sma3_stddevNorm");
+        
+        if (energyMean != null) {
+            summary.put("能量均值", energyMean);
+        }
+        if (energyStd != null) {
+            summary.put("能量变化", energyStd);
+            // 基于能量变化估计语速（变化越大，语速可能越快）
+            summary.put("语速指标", Math.min(1.0, energyStd / 10.0));
+        }
+        
+        // 频谱特征
+        Double spectralFlux = getFeature(features, "spectralFlux_sma3_amean");
+        Double spectralCentroid = getFeature(features, "spectralCentroid_sma3_amean");
+        Double mfccMean = getFeature(features, "mfcc_sma3_amean");
+        
+        if (spectralFlux != null) {
+            summary.put("频谱流量", spectralFlux);
+        }
+        if (spectralCentroid != null) {
+            summary.put("频谱重心", spectralCentroid);
+        }
+        if (mfccMean != null) {
+            summary.put("MFCC均值", mfccMean);
+        }
+        
+        return summary;
+    }
+    
+    /**
+     * 生成情感指标
+     */
+    private Map<String, Double> generateEmotionalIndicators(Map<String, Double> features) {
+        Map<String, Double> indicators = new HashMap<>();
+        
+        // 活跃度指标（基于响度和基频变化）
+        Double loudnessStd = getFeature(features, "loudness_sma3_stddevNorm");
+        Double f0Std = getFeature(features, "F0semitoneFrom27.5Hz_sma3nz_stddevNorm");
+        
+        if (loudnessStd != null && f0Std != null) {
+            double activity = (loudnessStd / 20.0 + f0Std / 10.0) / 2.0;
+            indicators.put("活跃度", Math.min(1.0, activity));
+        }
+        
+        // 紧张度指标（基于jitter和shimmer）
+        Double jitter = getFeature(features, "jitterLocal_sma3nz_amean");
+        Double shimmer = getFeature(features, "shimmerLocaldB_sma3nz_amean");
+        
+        if (jitter != null && shimmer != null) {
+            double tension = (jitter * 100.0 + shimmer / 2.0) / 2.0;
+            indicators.put("紧张度", Math.min(1.0, tension));
+        }
+        
+        // 情绪稳定性（基于HNR和基频稳定性）
+        Double hnr = getFeature(features, "HNRdBACF_sma3nz_amean");
+        Double f0Range = getFeature(features, "F0semitoneFrom27.5Hz_sma3nz_percentile20.0", 
+                                     "F0semitoneFrom27.5Hz_sma3nz_percentile80.0");
+        
+        if (hnr != null && f0Range != null) {
+            double stability = (hnr / 20.0 + (1.0 - Math.min(1.0, f0Range / 50.0))) / 2.0;
+            indicators.put("情绪稳定性", Math.max(0.0, stability));
+        }
+        
+        // 抑郁倾向（基于多个特征的组合）
+        double depressionScore = calculateDepressionScore(features);
+        indicators.put("抑郁倾向", depressionScore);
+        
+        // 能量水平
+        Double energyMean = getFeature(features, "pcm_RMSenergy_sma3_amean");
+        if (energyMean != null) {
+            double energyLevel = Math.min(1.0, energyMean / 1000.0);
+            indicators.put("能量水平", energyLevel);
+        }
+        
+        return indicators;
+    }
+    
+    /**
+     * 生成音频统计信息
+     */
+    private Map<String, Object> generateAudioStats(Map<String, Double> features, File audioFile) {
+        Map<String, Object> stats = new HashMap<>();
+        
+        // 文件信息
+        if (audioFile != null && audioFile.exists()) {
+            stats.put("文件大小", audioFile.length());
+            stats.put("文件名", audioFile.getName());
+        }
+        
+        // 特征统计
+        stats.put("特征总数", features.size());
+        stats.put("有效特征数", features.values().stream().mapToDouble(d -> d).filter(d -> !Double.isNaN(d)).count());
+        
+        // 音频时长估计（基于PCM数据）
+        Double zeroCrossingRate = getFeature(features, "pcm_zcr_sma3_amean");
+        if (zeroCrossingRate != null) {
+            // 粗略估计：假设16kHz采样率
+            double estimatedDuration = 1000.0 / (zeroCrossingRate * 16000.0 / 1000.0);
+            stats.put("估计时长(ms)", (int) estimatedDuration);
+        }
+        
+        // 音频质量指标
+        Double signalToNoise = getFeature(features, "audSpec_Rflux_sma3_amean");
+        if (signalToNoise != null) {
+            stats.put("信噪比指标", signalToNoise);
+        }
+        
+        // 配置信息
+        stats.put("配置类型", configType);
+        stats.put("处理时间", System.currentTimeMillis());
+        
+        return stats;
+    }
+    
+    /**
+     * 提取top-N特征（按方差或重要性排序）
+     */
+    private Map<String, Double> extractTopFeatures(Map<String, Double> features, int topN) {
+        Map<String, Double> topFeatures = new LinkedHashMap<>();
+        
+        // 优先级特征列表（基于声学重要性）
+        List<String> priorityFeatures = Arrays.asList(
+            "F0semitoneFrom27.5Hz_sma3nz_amean",           // 基频均值
+            "loudness_sma3_amean",                          // 响度均值
+            "jitterLocal_sma3nz_amean",                    // 音高微扰
+            "shimmerLocaldB_sma3nz_amean",                 // 振幅微扰
+            "HNRdBACF_sma3nz_amean",                       // 谐噪比
+            "pcm_RMSenergy_sma3_amean",                    // RMS能量
+            "spectralFlux_sma3_amean",                     // 频谱流量
+            "spectralCentroid_sma3_amean",                 // 频谱重心
+            "mfcc_sma3_amean",                             // MFCC系数
+            "pcm_zcr_sma3_amean",                          // 过零率
+            "F0semitoneFrom27.5Hz_sma3nz_stddevNorm",     // 基频标准差
+            "loudness_sma3_stddevNorm",                    // 响度标准差
+            "audSpec_Rflux_sma3_amean",                    // 频谱相对流量
+            "voiceProb_sma3nz_amean",                      // 语音概率
+            "logRelF0HarmMean_sma3nz_amean",               // 相对基频均值
+            "alphaRatio_sma3nz_amean",                     // 频谱倾斜度
+            "hammarbergIndex_sma3nz_amean",                // Hammarberg指数
+            "equivalentSoundLevel_dBp_sma3_amean",        // 等效声级
+            "spectralSkewness_sma3nz_amean",               // 频谱偏度
+            "spectralKurtosis_sma3nz_amean"                // 频谱峰度
+        );
+        
+        // 首先添加优先级特征
+        int count = 0;
+        for (String featureName : priorityFeatures) {
+            if (count >= topN) break;
+            
+            Double value = getFeature(features, featureName);
+            if (value != null && !Double.isNaN(value)) {
+                topFeatures.put(featureName, value);
+                count++;
+            }
+        }
+        
+        // 如果优先级特征不够，添加其他特征
+        if (count < topN) {
+            for (Map.Entry<String, Double> entry : features.entrySet()) {
+                if (count >= topN) break;
+                
+                if (!topFeatures.containsKey(entry.getKey()) && 
+                    !Double.isNaN(entry.getValue()) && 
+                    !Double.isInfinite(entry.getValue())) {
+                    
+                    topFeatures.put(entry.getKey(), entry.getValue());
+                    count++;
+                }
+            }
+        }
+        
+        return topFeatures;
+    }
+    
+    /**
      * 从特征Map中获取特征值
      */
     private Double getFeature(Map<String, Double> features, String... featureNames) {
@@ -669,6 +908,12 @@ public class OpenSmileService {
         private String configType;
         private int featureCount;
         
+        // New fields for enhanced acoustic analytics
+        private Map<String, Double> acousticSummary;
+        private Map<String, Double> emotionalIndicators;
+        private Map<String, Object> audioStats;
+        private Map<String, Double> topFeatures;
+        
         public boolean isSuccess() {
             return success;
         }
@@ -723,6 +968,38 @@ public class OpenSmileService {
         
         public void setFeatureCount(int featureCount) {
             this.featureCount = featureCount;
+        }
+        
+        public Map<String, Double> getAcousticSummary() {
+            return acousticSummary;
+        }
+        
+        public void setAcousticSummary(Map<String, Double> acousticSummary) {
+            this.acousticSummary = acousticSummary;
+        }
+        
+        public Map<String, Double> getEmotionalIndicators() {
+            return emotionalIndicators;
+        }
+        
+        public void setEmotionalIndicators(Map<String, Double> emotionalIndicators) {
+            this.emotionalIndicators = emotionalIndicators;
+        }
+        
+        public Map<String, Object> getAudioStats() {
+            return audioStats;
+        }
+        
+        public void setAudioStats(Map<String, Object> audioStats) {
+            this.audioStats = audioStats;
+        }
+        
+        public Map<String, Double> getTopFeatures() {
+            return topFeatures;
+        }
+        
+        public void setTopFeatures(Map<String, Double> topFeatures) {
+            this.topFeatures = topFeatures;
         }
     }
 }
