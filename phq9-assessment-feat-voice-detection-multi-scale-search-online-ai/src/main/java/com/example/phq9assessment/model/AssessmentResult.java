@@ -30,6 +30,8 @@ public class AssessmentResult {
     private VoiceDetectionService.VoiceAnalysisResult voiceAnalysis;
     private OnlineAIService.AIEnhancementResult aiEnhancement;
     private String questionnaireCode;
+    private Integer maxScore;
+    private CameraAnalysis cameraAnalysis;
 
     public int getTotalScore() {
         return totalScore;
@@ -165,5 +167,70 @@ public class AssessmentResult {
 
     public void setQuestionnaireCode(String questionnaireCode) {
         this.questionnaireCode = questionnaireCode;
+    }
+
+    public Integer getMaxScore() {
+        return maxScore;
+    }
+
+    public void setMaxScore(Integer maxScore) {
+        this.maxScore = maxScore;
+    }
+
+    public CameraAnalysis getCameraAnalysis() {
+        return cameraAnalysis;
+    }
+
+    public void setCameraAnalysis(CameraAnalysis cameraAnalysis) {
+        this.cameraAnalysis = cameraAnalysis;
+    }
+
+    public static class CameraAnalysis {
+        private int activityLevel;
+        private int postureScore;
+        private int movementCount;
+        private String insight;
+
+        public CameraAnalysis() {
+        }
+
+        public CameraAnalysis(int activityLevel, int postureScore, int movementCount, String insight) {
+            this.activityLevel = activityLevel;
+            this.postureScore = postureScore;
+            this.movementCount = movementCount;
+            this.insight = insight;
+        }
+
+        public int getActivityLevel() {
+            return activityLevel;
+        }
+
+        public void setActivityLevel(int activityLevel) {
+            this.activityLevel = activityLevel;
+        }
+
+        public int getPostureScore() {
+            return postureScore;
+        }
+
+        public void setPostureScore(int postureScore) {
+            this.postureScore = postureScore;
+        }
+
+        public int getMovementCount() {
+            return movementCount;
+        }
+
+        public void setMovementCount(int movementCount) {
+            this.movementCount = movementCount;
+        }
+
+        public String getInsight() {
+            return insight;
+        }
+
+        public void setInsight(String insight) {
+            this.insight = insight;
+        }
     }
 }

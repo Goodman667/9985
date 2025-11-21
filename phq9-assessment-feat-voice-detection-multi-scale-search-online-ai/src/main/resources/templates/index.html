@@ -3,444 +3,631 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能多量表评估系统 - AI驱动</title>
+    <title>智能心理健康评估系统</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet@2.2.2"></script>
     <script>
         window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     </script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #333;
+        * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1000px;
+            margin: 0 auto;
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        h1 {
+            color: #1a2a4c;
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 2.5em;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        h2, h3 {
+            color: #1a2a4c;
+            margin: 20px 0 15px 0;
+        }
+        
+        .badge-container {
+            text-align: center;
+            margin-bottom: 30px;
             display: flex;
             justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            flex-wrap: wrap;
+            gap: 10px;
         }
-        .container {
-            background-color: #ffffff;
-            padding: 30px 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            width: 100%;
-            max-width: 800px;
-        }
-        h1, h2, h3 {
-            color: #1a2a4c;
-        }
-        h1 {
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        .ai-badge {
+        
+        .badge {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 12px;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 13px;
             display: inline-block;
-            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            animation: pulse 2s ease-in-out infinite;
         }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            animation: slideIn 0.5s ease-in;
         }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
         label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 1.05em;
         }
-        .radio-group {
-            display: flex;
-            justify-content: space-between;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            padding: 5px;
-            background-color: #f9f9f9;
-        }
-        .radio-option {
-            flex: 1;
-            text-align: center;
-        }
-        .radio-option input[type="radio"] {
-            display: none;
-        }
-        .radio-option label {
-            margin: 0;
-            padding: 10px;
-            border-radius: 6px;
-            cursor: pointer;
-            display: block;
-            transition: all 0.2s ease-in-out;
-            font-size: 14px;
-        }
-        .radio-option input[type="radio"]:checked + label {
-            background-color: #667eea;
-            color: white;
-            font-weight: bold;
-        }
-        .sentiment-box {
-            background-color: #f0f4ff;
-            border: 2px dashed #667eea;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 25px 0;
-        }
-        .sentiment-box textarea {
+        
+        select, input[type="text"], textarea {
             width: 100%;
-            min-height: 100px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-family: inherit;
+            padding: 14px;
+            border: 2px solid #e0e7ff;
+            border-radius: 12px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        select:focus, input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .search-container > * {
+            flex: 1;
+        }
+        
+        .search-results {
+            background: #f8f9ff;
+            border: 2px solid #e0e7ff;
+            border-radius: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        
+        .search-result-item {
+            padding: 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #e0e7ff;
+            transition: all 0.2s ease;
+        }
+        
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .search-result-item:hover {
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.05) 100%);
+            transform: translateX(5px);
+        }
+        
+        .question-container {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .radio-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .radio-option {
+            position: relative;
+        }
+        
+        .radio-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        .radio-option label {
+            display: block;
+            padding: 15px;
+            border: 2px solid #e0e7ff;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            background: white;
+            font-weight: 500;
             font-size: 14px;
+            margin: 0;
+        }
+        
+        .radio-option input[type="radio"]:checked + label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        .radio-option label:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+        
+        .feature-card {
+            background: white;
+            border: 2px solid #e0e7ff;
+            border-radius: 16px;
+            padding: 25px;
+            margin: 25px 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        
+        .feature-card h3 {
+            color: #667eea;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .feature-card textarea {
+            min-height: 120px;
             resize: vertical;
         }
-        .submit-btn {
+        
+        .camera-preview {
+            position: relative;
             width: 100%;
+            max-width: 640px;
+            margin: 15px auto;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .camera-preview video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .camera-preview canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .camera-status {
+            background: rgba(102, 126, 234, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .posture-indicator {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .posture-metric {
+            flex: 1;
+            min-width: 150px;
+            background: white;
             padding: 15px;
-            font-size: 16px;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid #e0e7ff;
+        }
+        
+        .posture-metric-value {
+            font-size: 24px;
             font-weight: bold;
-            color: #fff;
+            color: #667eea;
+            margin: 5px 0;
+        }
+        
+        .posture-metric-label {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .btn {
+            padding: 16px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            display: inline-block;
+            text-decoration: none;
+            text-align: center;
         }
-        .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.6);
         }
+        
+        .btn:active {
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+        }
+        
+        .btn-secondary:hover {
+            box-shadow: 0 6px 25px rgba(108, 117, 125, 0.6);
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .btn-group button {
+            flex: 1;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            margin-top: 30px;
+        }
+        
         .result-box {
             text-align: center;
         }
-        .ai-insights {
+        
+        .score-display {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
+            padding: 30px;
+            border-radius: 16px;
+            margin: 30px 0;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
         }
-        .insight-card {
-            background-color: white;
-            color: #333;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        .insight-card h4 {
-            margin-top: 0;
-            color: #667eea;
-        }
-        .ml-risk-score {
-            display: inline-block;
-            padding: 10px 20px;
-            border-radius: 20px;
+        
+        .score-display .score {
+            font-size: 3em;
             font-weight: bold;
             margin: 10px 0;
         }
+        
+        .insight-card {
+            background: white;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 15px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .insight-card h4 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        
+        .risk-badge {
+            display: inline-block;
+            padding: 10px 25px;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 15px 0;
+            font-size: 1.1em;
+        }
+        
         .risk-low { background-color: #4CAF50; color: white; }
         .risk-medium { background-color: #FF9800; color: white; }
         .risk-high { background-color: #F44336; color: white; }
-        .level {
-            font-size: 1.5em;
-            font-weight: bold;
-            margin: 10px 0;
-        }
+        
         .level.minimal { color: #4CAF50; }
-        .level.mild { color: #FFEB3B; color: #F57C00; }
+        .level.mild { color: #FFA726; }
         .level.moderate { color: #FF9800; }
         .level.moderately-severe { color: #F44336; }
         .level.severe { color: #B71C1C; }
-        .sentiment-result {
-            background-color: #e8f5e9;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border-left: 4px solid #4CAF50;
+        
+        .alert-box {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0 10px 30px rgba(238, 90, 111, 0.3);
         }
-        .sentiment-negative {
-            background-color: #ffebee;
-            border-left-color: #F44336;
+        
+        .alert-box strong {
+            font-size: 1.2em;
+            display: block;
+            margin-bottom: 15px;
         }
-        .recommendations {
-            text-align: left;
-            margin: 20px 0;
-        }
-        .recommendation-item {
-            background-color: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 10px 0;
-            transition: transform 0.2s;
-        }
-        .recommendation-item:hover {
-            transform: translateX(5px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        .priority-critical {
-            border-left: 4px solid #B71C1C;
-            background-color: #ffebee;
-        }
-        .priority-high {
-            border-left: 4px solid #F44336;
-        }
-        .priority-medium {
-            border-left: 4px solid #FF9800;
-        }
+        
         .chart-container {
-            max-width: 400px;
-            margin: 20px auto;
+            max-width: 600px;
+            margin: 30px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         }
-        .anomaly-warning {
-            background-color: #fff3cd;
-            border: 1px solid #ffc107;
-            color: #856404;
-            padding: 15px;
-            border-radius: 8px;
+        
+        .recommendation-item {
+            background: white;
+            border: 2px solid #e0e7ff;
+            border-radius: 12px;
+            padding: 20px;
             margin: 15px 0;
+            transition: all 0.3s ease;
         }
+        
+        .recommendation-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .priority-critical {
+            border-left: 5px solid #B71C1C;
+            background: linear-gradient(90deg, #ffebee 0%, white 100%);
+        }
+        
+        .priority-high {
+            border-left: 5px solid #F44336;
+        }
+        
+        .priority-medium {
+            border-left: 5px solid #FF9800;
+        }
+        
         .trend-indicator {
             display: inline-block;
-            padding: 5px 15px;
-            border-radius: 15px;
+            padding: 8px 20px;
+            border-radius: 20px;
             font-size: 14px;
             font-weight: bold;
             margin: 0 10px;
         }
+        
         .trend-improving {
-            background-color: #c8e6c9;
+            background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
             color: #2e7d32;
         }
+        
         .trend-stable {
-            background-color: #fff9c4;
+            background: linear-gradient(135deg, #fff9c4 0%, #fff59d 100%);
             color: #f57f17;
         }
+        
         .trend-worsening {
-            background-color: #ffcdd2;
+            background: linear-gradient(135deg, #ffcdd2 0%, #ef9a9a 100%);
             color: #c62828;
         }
-        .alert-box {
-            background-color: #ffebee;
-            color: #c62828;
-            border: 2px solid #ef5350;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        .suggestion-box {
-            text-align: left;
-            background-color: #eef2ff;
-            border-left: 5px solid #5c7cfa;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 20px;
-        }
-        .back-link {
+        
+        .loading {
             display: inline-block;
-            margin-top: 30px;
-            padding: 10px 20px;
-            background-color: #667eea;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            transition: transform 0.2s;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
         }
-        .back-link:hover {
-            transform: translateY(-2px);
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .radio-group {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- 评估表单 -->
     <div th:if="${result == null}">
-        <h1>🧠 智能多量表评估系统</h1>
-        <p style="text-align: center;">
-            <span class="ai-badge">🤖 AI + 语音识别 + 在线AI驱动</span>
-        </p>
-        
-        <div class="form-group">
-            <label for="questionnaire-select">📋 选择评估量表：</label>
-            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                <select id="questionnaire-select" style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
-                    <option value="">-- 搜索或选择量表 --</option>
-                    <option th:each="q : ${questionnaires}" th:value="${q.code}" th:text="${q.name + ' (' + q.totalQuestions + '题)'}"></option>
-                </select>
-                <input type="text" id="search-input" placeholder="搜索量表..." style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
-            </div>
-            <div id="search-results" style="display: none; background-color: #f5f5f5; border-radius: 6px; max-height: 200px; overflow-y: auto; margin-bottom: 10px;"></div>
+        <h1>🧠 智能心理健康评估系统</h1>
+        <div class="badge-container">
+            <span class="badge">🤖 AI驱动分析</span>
+            <span class="badge">🎤 语音情感识别</span>
+            <span class="badge">📹 动作姿态检测</span>
+            <span class="badge">🌐 在线AI增强</span>
         </div>
         
-        <p style="text-align: center;">在过去的两周里，您是否经常受到以下问题的困扰？请选择最符合您情况的选项。</p>
+        <div class="form-group">
+            <label for="questionnaire-select">📋 选择评估量表</label>
+            <div class="search-container">
+                <select id="questionnaire-select">
+                    <option value="">-- 选择量表 --</option>
+                    <option th:each="q : ${questionnaires}" 
+                            th:value="${q.code}" 
+                            th:text="${q.name + ' (' + q.totalQuestions + '题)'}"></option>
+                </select>
+                <input type="text" id="search-input" placeholder="🔍 搜索量表...">
+            </div>
+            <div id="search-results" style="display: none;" class="search-results"></div>
+        </div>
         
-        <form action="/submit" method="post">
+        <p id="questionnaire-description" style="text-align: center; color: #666; margin-bottom: 30px;">
+            请选择一个评估量表开始测评
+        </p>
+        
+        <div id="camera-detection-section" class="feature-card" style="display: none;">
+            <h3>📹 智能动作姿态检测</h3>
+            <p>通过摄像头检测您的身体姿态和活动水平，帮助评估精神状态和活力指标</p>
+            <div class="btn-group">
+                <button type="button" id="camera-start-btn" class="btn">开启摄像头检测</button>
+                <button type="button" id="camera-stop-btn" class="btn btn-secondary" style="display: none;">停止检测</button>
+            </div>
+            <div id="camera-status" class="camera-status" style="display: none;"></div>
+            <div class="camera-preview" id="camera-preview" style="display: none;">
+                <video id="camera-video" autoplay playsinline></video>
+                <canvas id="camera-canvas"></canvas>
+            </div>
+            <div id="posture-indicators" class="posture-indicator" style="display: none;">
+                <div class="posture-metric">
+                    <div class="posture-metric-value" id="activity-level">0%</div>
+                    <div class="posture-metric-label">活动水平</div>
+                </div>
+                <div class="posture-metric">
+                    <div class="posture-metric-value" id="posture-score">100%</div>
+                    <div class="posture-metric-label">姿态评分</div>
+                </div>
+                <div class="posture-metric">
+                    <div class="posture-metric-value" id="movement-count">0</div>
+                    <div class="posture-metric-label">动作次数</div>
+                </div>
+            </div>
+        </div>
+        
+        <form id="assessment-form" action="/submit" method="post" style="display: none;">
             <input type="hidden" id="questionnaireCode" name="questionnaireCode" value="PHQ-9">
             <input type="hidden" id="voiceAudio" name="voiceAudio" value="">
-            <div class="form-group">
-                <label>1. 做事时提不起劲或没有兴趣</label>
-                <div class="radio-group">
-                    <div class="radio-option"><input type="radio" id="q1_0" name="q1" value="0" required><label for="q1_0">完全没有</label></div>
-                    <div class="radio-option"><input type="radio" id="q1_1" name="q1" value="1"><label for="q1_1">有几天</label></div>
-                    <div class="radio-option"><input type="radio" id="q1_2" name="q1" value="2"><label for="q1_2">一半以上</label></div>
-                    <div class="radio-option"><input type="radio" id="q1_3" name="q1" value="3"><label for="q1_3">几乎每天</label></div>
-                </div>
-            </div>
+            <input type="hidden" id="cameraData" name="cameraData" value="">
             
-            <div class="form-group">
-                <label>2. 感到心情低落、沮丧或绝望</label>
-                <div class="radio-group">
-                    <div class="radio-option"><input type="radio" id="q2_0" name="q2" value="0" required><label for="q2_0">完全没有</label></div>
-                    <div class="radio-option"><input type="radio" id="q2_1" name="q2" value="1"><label for="q2_1">有几天</label></div>
-                    <div class="radio-option"><input type="radio" id="q2_2" name="q2" value="2"><label for="q2_2">一半以上</label></div>
-                    <div class="radio-option"><input type="radio" id="q2_3" name="q2" value="3"><label for="q2_3">几乎每天</label></div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>3. 入睡困难、睡不安稳或睡眠过多</label>
-                <div class="radio-group">
-                    <div class="radio-option"><input type="radio" id="q3_0" name="q3" value="0" required><label for="q3_0">完全没有</label></div>
-                    <div class="radio-option"><input type="radio" id="q3_1" name="q3" value="1"><label for="q3_1">有几天</label></div>
-                    <div class="radio-option"><input type="radio" id="q3_2" name="q3" value="2"><label for="q3_2">一半以上</label></div>
-                    <div class="radio-option"><input type="radio" id="q3_3" name="q3" value="3"><label for="q3_3">几乎每天</label></div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>4. 感到疲惫或没有活力</label>
-                <div class="radio-group">
-                    <div class="radio-option"><input type="radio" id="q4_0" name="q4" value="0" required><label for="q4_0">完全没有</label></div>
-                    <div class="radio-option"><input type="radio" id="q4_1" name="q4" value="1"><label for="q4_1">有几天</label></div>
-                    <div class="radio-option"><input type="radio" id="q4_2" name="q4" value="2"><label for="q4_2">一半以上</label></div>
-                    <div class="radio-option"><input type="radio" id="q4_3" name="q4" value="3"><label for="q4_3">几乎每天</label></div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>5. 食欲不振或暴饮暴食</label>
-                <div class="radio-group">
-                    <div class="radio-option"><input type="radio" id="q5_0" name="q5" value="0" required><label for="q5_0">完全没有</label></div>
-                    <div class="radio-option"><input type="radio" id="q5_1" name="q5" value="1"><label for="q5_1">有几天</label></div>
-                    <div class="radio-option"><input type="radio" id="q5_2" name="q5" value="2"><label for="q5_2">一半以上</label></div>
-                    <div class="radio-option"><input type="radio" id="q5_3" name="q5" value="3"><label for="q5_3">几乎每天</label></div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>6. 感觉自己很糟或觉得自己很失败，让自己或家人失望</label>
-                <div class="radio-group">
-                    <div class="radio-option"><input type="radio" id="q6_0" name="q6" value="0" required><label for="q6_0">完全没有</label></div>
-                    <div class="radio-option"><input type="radio" id="q6_1" name="q6" value="1"><label for="q6_1">有几天</label></div>
-                    <div class="radio-option"><input type="radio" id="q6_2" name="q6" value="2"><label for="q6_2">一半以上</label></div>
-                    <div class="radio-option"><input type="radio" id="q6_3" name="q6" value="3"><label for="q6_3">几乎每天</label></div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>7. 对事物专注有困难，例如看报纸或看电视</label>
-                <div class="radio-group">
-                    <div class="radio-option"><input type="radio" id="q7_0" name="q7" value="0" required><label for="q7_0">完全没有</label></div>
-                    <div class="radio-option"><input type="radio" id="q7_1" name="q7" value="1"><label for="q7_1">有几天</label></div>
-                    <div class="radio-option"><input type="radio" id="q7_2" name="q7" value="2"><label for="q7_2">一半以上</label></div>
-                    <div class="radio-option"><input type="radio" id="q7_3" name="q7" value="3"><label for="q7_3">几乎每天</label></div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>8. 行动或说话速度变得缓慢或相反地感觉坐立不安、烦躁</label>
-                <div class="radio-group">
-                    <div class="radio-option"><input type="radio" id="q8_0" name="q8" value="0" required><label for="q8_0">完全没有</label></div>
-                    <div class="radio-option"><input type="radio" id="q8_1" name="q8" value="1"><label for="q8_1">有几天</label></div>
-                    <div class="radio-option"><input type="radio" id="q8_2" name="q8" value="2"><label for="q8_2">一半以上</label></div>
-                    <div class="radio-option"><input type="radio" id="q8_3" name="q8" value="3"><label for="q8_3">几乎每天</label></div>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label>9. 有不如死掉或用某种方式伤害自己的念头</label>
-                <div class="radio-group">
-                    <div class="radio-option"><input type="radio" id="q9_0" name="q9" value="0" required><label for="q9_0">完全没有</label></div>
-                    <div class="radio-option"><input type="radio" id="q9_1" name="q9" value="1"><label for="q9_1">有几天</label></div>
-                    <div class="radio-option"><input type="radio" id="q9_2" name="q9" value="2"><label for="q9_2">一半以上</label></div>
-                    <div class="radio-option"><input type="radio" id="q9_3" name="q9" value="3"><label for="q9_3">几乎每天</label></div>
-                </div>
-            </div>
+            <div id="questions-container"></div>
 
-            <div class="sentiment-box">
+            <div class="feature-card">
                 <h3>🎤 语音情感分析（可选）</h3>
-                <p>点击下方按钮录制语音，AI将分析您的语调和情绪：</p>
-                <div style="display: flex; gap: 10px; margin: 15px 0;">
-                    <button type="button" id="voice-record-btn" class="submit-btn" style="background-color: #667eea; flex: 1;">🎤 开始录音</button>
-                    <button type="button" id="voice-stop-btn" class="submit-btn" style="background-color: #999; flex: 1; display: none;">⏹️ 停止录音</button>
+                <p>录制一段语音描述您的感受，AI将分析您的语调和情绪特征：</p>
+                <div class="btn-group">
+                    <button type="button" id="voice-record-btn" class="btn">🎤 开始录音</button>
+                    <button type="button" id="voice-stop-btn" class="btn btn-secondary" style="display: none;">⏹️ 停止录音</button>
                 </div>
-                <div id="voice-status" style="text-align: center; color: #666; font-size: 12px; margin: 10px 0;"></div>
-                <audio id="voice-playback" controls style="width: 100%; margin: 10px 0; display: none;"></audio>
+                <div id="voice-status" style="text-align: center; color: #666; margin: 15px 0;"></div>
+                <audio id="voice-playback" controls style="width: 100%; margin: 15px 0; display: none;"></audio>
             </div>
 
-            <div class="sentiment-box">
+            <div class="feature-card">
                 <h3>💬 文字情感分析（可选）</h3>
-                <p>请用您自己的话描述一下您最近的感受和心情，我们的AI将分析您的文字情感：</p>
-                <textarea name="sentimentText" placeholder="例如：最近总是感觉很累，对什么都提不起兴趣，晚上也睡不好..."></textarea>
+                <p>用您自己的话描述最近的感受和心情，AI将进行深度情感分析：</p>
+                <textarea name="sentimentText" placeholder="例如：最近总是感觉很累，对什么都提不起兴趣，晚上也睡不好觉，经常会想一些负面的事情..."></textarea>
             </div>
 
-            <button type="submit" class="submit-btn">🚀 开始智能分析</button>
+            <button type="submit" class="btn submit-btn">🚀 开始智能分析</button>
         </form>
     </div>
 
-    <!-- 评估结果 -->
     <div th:if="${result != null}" class="result-box">
         <h1>🎯 您的智能评估结果</h1>
-        <p><span class="ai-badge">🤖 AI驱动的多维度分析</span></p>
-
-        <p class="level" th:classappend="${result.level}">
-            PHQ-9得分：<strong th:text="${result.totalScore}">0</strong> / 27<br/>
-            风险等级：<span th:text="${result.levelText}">未知</span>
-        </p>
-
-        <!-- AI机器学习风险评分 -->
-        <div class="ai-insights">
-            <h3>🤖 机器学习智能风险评估</h3>
-            <div class="insight-card">
-                <h4>综合风险评分</h4>
-                <span class="ml-risk-score" 
-                      th:classappend="${result.mlRiskScore < 0.4 ? 'risk-low' : (result.mlRiskScore < 0.7 ? 'risk-medium' : 'risk-high')}">
-                    <span th:text="${#numbers.formatDecimal(result.mlRiskScore * 100, 1, 1)}">0</span>%
-                </span>
-                <p>风险等级：<strong th:text="${result.mlRiskLevel}">-</strong></p>
-                <small>基于多维度特征的机器学习预测模型</small>
-            </div>
+        <div class="badge-container">
+            <span class="badge">AI多维度深度分析</span>
         </div>
 
-        <!-- 情感分析结果 -->
+        <div class="score-display">
+            <p style="font-size: 1.2em; margin-bottom: 10px;">总分数</p>
+            <div class="score" th:text="${result.totalScore} + ' / ' + ${result.maxScore ?: 27}">0</div>
+            <p class="level" th:classappend="${result.level}" th:text="${result.levelText}" style="font-size: 1.3em;">未知</p>
+        </div>
+
+        <div class="insight-card">
+            <h4>🤖 机器学习风险评估</h4>
+            <span class="risk-badge" 
+                  th:classappend="${result.mlRiskScore < 0.4 ? 'risk-low' : (result.mlRiskScore < 0.7 ? 'risk-medium' : 'risk-high')}">
+                风险指数: <span th:text="${#numbers.formatDecimal(result.mlRiskScore * 100, 1, 1)}">0</span>%
+            </span>
+            <p>风险等级：<strong th:text="${result.mlRiskLevel}">-</strong></p>
+            <small style="color: #666;">基于多维度特征的机器学习预测模型</small>
+        </div>
+
         <div th:if="${result.sentimentAnalysis != null and result.sentimentAnalysis.score != 0}" 
-             class="sentiment-result"
-             th:classappend="${result.sentimentAnalysis.sentiment == 'negative' ? 'sentiment-negative' : ''}">
+             class="insight-card">
             <h4>📊 NLP情感分析结果</h4>
             <p>情感倾向：<strong th:text="${result.sentimentAnalysis.sentimentText}">-</strong>
                （得分：<span th:text="${#numbers.formatDecimal(result.sentimentAnalysis.score, 1, 2)}">0</span>）</p>
             <p th:if="${not #lists.isEmpty(result.sentimentAnalysis.negativeWords)}">
-                检测到的消极词汇：<span th:text="${#strings.listJoin(result.sentimentAnalysis.negativeWords, '、')}"></span>
+                消极词汇：<span th:text="${#strings.listJoin(result.sentimentAnalysis.negativeWords, '、')}"></span>
             </p>
             <p th:if="${not #lists.isEmpty(result.sentimentAnalysis.keywords)}">
-                关键情绪标签：<span th:text="${#strings.listJoin(result.sentimentAnalysis.keywords, '、')}"></span>
+                情绪标签：<span th:text="${#strings.listJoin(result.sentimentAnalysis.keywords, '、')}"></span>
             </p>
         </div>
 
-        <!-- 用户聚类结果 -->
         <div class="insight-card" th:if="${result.clusterResult != null}">
             <h4>👥 智能分群分析</h4>
-            <p>您被归类为：<strong th:text="${result.clusterResult.clusterText}">-</strong></p>
+            <p><strong th:text="${result.clusterResult.clusterText}">-</strong></p>
             <p th:text="${result.clusterResult.intervention}">-</p>
         </div>
 
-        <!-- 趋势分析 -->
         <div class="insight-card" th:if="${result.hasHistoricalData and result.trendAnalysis != null}">
             <h4>📈 历史趋势分析</h4>
             <p>
@@ -458,76 +645,52 @@
             </div>
         </div>
 
-        <!-- 异常检测警告 -->
-        <div class="anomaly-warning" th:if="${result.anomalyDetection != null and result.anomalyDetection.anomalous}">
+        <div th:if="${result.anomalyDetection != null and result.anomalyDetection.anomalous}" 
+             class="insight-card" style="border-left-color: #FF9800;">
             <h4>⚠️ 答题模式提醒</h4>
-            <ul>
+            <ul style="margin-left: 20px;">
                 <li th:each="anomaly : ${result.anomalyDetection.anomalies}" th:text="${anomaly}"></li>
             </ul>
         </div>
 
-        <!-- 个性化建议 -->
-        <div class="suggestion-box">
-            <h3>💡 传统评估建议</h3>
-            <p th:utext="${#strings.replace(result.suggestion, '\n', '&lt;br/&gt;')}"></p>
+        <div class="insight-card">
+            <h3>💡 个性化建议</h3>
+            <p th:utext="${#strings.replace(result.suggestion, '\n', '<br/>')}"></p>
         </div>
 
-        <!-- AI智能推荐 -->
-        <div class="recommendations" th:if="${result.recommendations != null}">
+        <div th:if="${result.recommendations != null}" style="margin: 30px 0;">
             <h3>🎯 AI智能干预推荐</h3>
             <div th:each="rec : ${result.recommendations}" 
                  class="recommendation-item"
                  th:classappend="${rec.priorityClass}">
                 <h4 th:text="${rec.title}">-</h4>
                 <p th:text="${rec.description}">-</p>
-                <small>优先级：<span th:text="${rec.priorityText}">-</span></small>
+                <small style="color: #666;">优先级：<span th:text="${rec.priorityText}">-</span></small>
             </div>
         </div>
 
-        <!-- 语音分析结果 -->
-        <div th:if="${result.voiceAnalysis != null}" class="ai-insights">
-            <h3>🎤 语音情感分析</h3>
-            <div class="insight-card">
-                <div th:if="${result.voiceAnalysis.usingOpenSmile}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 5px 10px; border-radius: 5px; display: inline-block; margin-bottom: 10px; font-size: 12px;">
-                    <strong>✨ OpenSMILE专业分析</strong> - <span th:text="${result.voiceAnalysis.openSmileConfigType}">-</span> (<span th:text="${result.voiceAnalysis.featureCount}">-</span>个特征)
-                </div>
-                <h4>语音情绪评分</h4>
-                <p>情感分数：<strong th:text="${#numbers.formatDecimal(result.voiceAnalysis.emotionScore, 1, 2)}">0</strong></p>
-                <p th:if="${result.voiceAnalysis.usingOpenSmile}">抑郁风险等级：<strong th:text="${result.voiceAnalysis.emotionCategory}">-</strong></p>
-                <p th:unless="${result.voiceAnalysis.usingOpenSmile}">情感类别：<strong th:text="${result.voiceAnalysis.emotionCategory}">-</strong></p>
-                <p>识别置信度：<strong th:text="${#numbers.formatDecimal(result.voiceAnalysis.confidence * 100, 1, 1)} + '%'">-</strong></p>
-                <div th:if="${result.voiceAnalysis.features != null}">
-                    <small th:if="${!result.voiceAnalysis.usingOpenSmile}">
-                        音量：<span th:text="${#numbers.formatDecimal(result.voiceAnalysis.features.volume, 1, 2)}">-</span> |
-                        音调：<span th:text="${#numbers.formatDecimal(result.voiceAnalysis.features.pitch, 1, 2)}">-</span> |
-                        语速：<span th:text="${#numbers.formatDecimal(result.voiceAnalysis.features.pace, 1, 2)}">-</span>
-                    </small>
-                    <div th:if="${result.voiceAnalysis.usingOpenSmile}" style="margin-top: 10px; background-color: #f9f9f9; padding: 10px; border-radius: 5px;">
-                        <small style="color: #666;">
-                            <strong>OpenSMILE声学特征提取：</strong><br/>
-                            已从语音中提取 <strong th:text="${result.voiceAnalysis.featureCount}">-</strong> 个专业声学特征，
-                            包括基频(F0)、响度、音质微扰(Jitter/Shimmer)、谐噪比(HNR)等关键指标，
-                            这些特征在临床研究中被广泛用于抑郁症和情绪障碍的辅助诊断。
-                        </small>
-                    </div>
-                </div>
+        <div th:if="${result.voiceAnalysis != null}" class="insight-card">
+            <h4>🎤 语音情感分析</h4>
+            <div th:if="${result.voiceAnalysis.usingOpenSmile}" 
+                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                <strong>✨ OpenSMILE专业分析</strong> - 
+                <span th:text="${result.voiceAnalysis.openSmileConfigType}">-</span> 
+                (<span th:text="${result.voiceAnalysis.featureCount}">-</span>个特征)
             </div>
+            <p>情感分数：<strong th:text="${#numbers.formatDecimal(result.voiceAnalysis.emotionScore, 1, 2)}">0</strong></p>
+            <p>情感类别：<strong th:text="${result.voiceAnalysis.emotionCategory}">-</strong></p>
+            <p>识别置信度：<strong th:text="${#numbers.formatDecimal(result.voiceAnalysis.confidence * 100, 1, 1)} + '%'">-</strong></p>
         </div>
 
-        <!-- 在线AI增强分析 -->
-        <div th:if="${result.aiEnhancement != null and result.aiEnhancement.successful}" class="ai-insights">
-            <h3>🌐 在线AI增强分析</h3>
-            <div class="insight-card">
-                <h4>智能推理分析</h4>
-                <p>供应商：<strong th:text="${result.aiEnhancement.provider}">-</strong>
-                   <span th:if="${result.aiEnhancement.onlineAnalysis}" style="color: #4CAF50; font-size: 12px;">(在线)</span>
-                   <span th:unless="${result.aiEnhancement.onlineAnalysis}" style="color: #FF9800; font-size: 12px;">(本地)</span>
-                </p>
-                <p th:text="${result.aiEnhancement.enhancedAnalysis}">-</p>
-            </div>
+        <div th:if="${result.aiEnhancement != null and result.aiEnhancement.successful}" class="insight-card">
+            <h4>🌐 在线AI增强分析</h4>
+            <p>供应商：<strong th:text="${result.aiEnhancement.provider}">-</strong>
+               <span th:if="${result.aiEnhancement.onlineAnalysis}" style="color: #4CAF50;">(在线)</span>
+               <span th:unless="${result.aiEnhancement.onlineAnalysis}" style="color: #FF9800;">(本地)</span>
+            </p>
+            <p th:text="${result.aiEnhancement.enhancedAnalysis}">-</p>
         </div>
 
-        <!-- 高风险警告 -->
         <div th:if="${result.highRisk}" class="alert-box">
             <strong>⚠️ 重要提醒：检测到高风险信号</strong>
             <p>您的测评结果显示出需要立即关注的风险。请不要独自面对，寻求帮助是勇敢和重要的第一步。</p>
@@ -535,7 +698,7 @@
             <p>北京心理危机干预热线：010-82951332</p>
         </div>
 
-        <a href="/" class="back-link">🔄 返回，重新测评</a>
+        <a href="/" class="btn" style="margin-top: 30px;">🔄 返回，重新测评</a>
     </div>
 </div>
 
@@ -549,19 +712,27 @@
         data: {
             labels: labels,
             datasets: [{
-                label: 'PHQ-9得分趋势',
+                label: '评分趋势',
                 data: scores,
                 borderColor: '#667eea',
                 backgroundColor: 'rgba(102, 126, 234, 0.1)',
                 tension: 0.4,
-                fill: true
+                fill: true,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#667eea',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
             }]
         },
         options: {
             responsive: true,
             plugins: {
                 legend: {
-                    display: true
+                    display: true,
+                    labels: {
+                        font: { size: 14 }
+                    }
                 }
             },
             scales: {
@@ -570,7 +741,8 @@
                     max: 27,
                     title: {
                         display: true,
-                        text: '得分'
+                        text: '得分',
+                        font: { size: 14, weight: 'bold' }
                     }
                 }
             }
@@ -582,6 +754,123 @@
     let mediaRecorder;
     let audioChunks = [];
     let isRecording = false;
+    let currentQuestionnaire = null;
+    let cameraStream = null;
+    let poseNet = null;
+    let cameraInterval = null;
+    let activityData = {
+        movementCount: 0,
+        activityLevel: 0,
+        postureScore: 100,
+        lastPose: null
+    };
+
+    const questionnaireSelect = document.getElementById('questionnaire-select');
+    const searchInput = document.getElementById('search-input');
+    const searchResults = document.getElementById('search-results');
+    const assessmentForm = document.getElementById('assessment-form');
+    const questionsContainer = document.getElementById('questions-container');
+    const questionnaireCodeInput = document.getElementById('questionnaireCode');
+    const questionnaireDescription = document.getElementById('questionnaire-description');
+    const cameraSection = document.getElementById('camera-detection-section');
+    
+    if (questionnaireSelect) {
+        questionnaireSelect.addEventListener('change', async (e) => {
+            if (e.target.value) {
+                await loadQuestionnaire(e.target.value);
+            } else {
+                assessmentForm.style.display = 'none';
+                cameraSection.style.display = 'none';
+            }
+        });
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', async (e) => {
+            const keyword = e.target.value.trim();
+            if (keyword.length === 0) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch('/search-questionnaires?keyword=' + encodeURIComponent(keyword));
+                const questionnaires = await response.json();
+                
+                if (questionnaires.length > 0) {
+                    searchResults.innerHTML = questionnaires.map(q => 
+                        `<div class="search-result-item" onclick="selectQuestionnaire('${q.code}', '${q.name}')">
+                            <strong>${q.name}</strong> (${q.totalQuestions}题)<br>
+                            <small style="color: #666;">${q.description}</small>
+                        </div>`
+                    ).join('');
+                    searchResults.style.display = 'block';
+                } else {
+                    searchResults.innerHTML = '<div class="search-result-item" style="color: #999;">未找到匹配的量表</div>';
+                    searchResults.style.display = 'block';
+                }
+            } catch (err) {
+                console.error('搜索失败:', err);
+            }
+        });
+    }
+
+    async function selectQuestionnaire(code, name) {
+        questionnaireSelect.value = code;
+        searchResults.style.display = 'none';
+        searchInput.value = '';
+        await loadQuestionnaire(code);
+    }
+
+    async function loadQuestionnaire(code) {
+        try {
+            const response = await fetch('/questions?questionnaireCode=' + encodeURIComponent(code));
+            const questions = await response.json();
+            
+            if (questions.length > 0) {
+                renderQuestions(questions);
+                questionnaireCodeInput.value = code;
+                assessmentForm.style.display = 'block';
+                cameraSection.style.display = 'block';
+                
+                const selectedOption = questionnaireSelect.options[questionnaireSelect.selectedIndex];
+                questionnaireDescription.textContent = `已选择：${selectedOption.text}。在过去的两周里，您是否受到以下问题的困扰？`;
+            }
+        } catch (err) {
+            console.error('加载问题失败:', err);
+            alert('加载问卷失败，请重试');
+        }
+    }
+
+    function renderQuestions(questions) {
+        questionsContainer.innerHTML = '';
+        questions.forEach((q, index) => {
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'question-container';
+            questionDiv.style.animationDelay = `${index * 0.1}s`;
+            
+            let optionsHtml = '';
+            const options = [q.option0, q.option1, q.option2, q.option3].filter(opt => opt);
+            options.forEach((opt, optIndex) => {
+                optionsHtml += `
+                    <div class="radio-option">
+                        <input type="radio" id="q${q.questionNumber}_${optIndex}" 
+                               name="q${q.questionNumber}" value="${optIndex}" ${optIndex === 0 ? 'required' : ''}>
+                        <label for="q${q.questionNumber}_${optIndex}">${opt}</label>
+                    </div>
+                `;
+            });
+            
+            questionDiv.innerHTML = `
+                <label>${q.questionNumber}. ${q.questionText}</label>
+                <div class="radio-group">
+                    ${optionsHtml}
+                </div>
+            `;
+            
+            questionsContainer.appendChild(questionDiv);
+        });
+    }
 
     const recordBtn = document.getElementById('voice-record-btn');
     const stopBtn = document.getElementById('voice-stop-btn');
@@ -612,6 +901,7 @@
                         playback.src = audioUrl;
                         playback.style.display = 'block';
                         statusDiv.textContent = '✅ 录音完成，已保存';
+                        statusDiv.style.color = '#4CAF50';
                     };
                     reader.readAsDataURL(audioBlob);
                     
@@ -623,8 +913,10 @@
                 stopBtn.style.display = 'block';
                 isRecording = true;
                 statusDiv.textContent = '🔴 正在录音...';
+                statusDiv.style.color = '#F44336';
             } catch (err) {
                 statusDiv.textContent = '❌ 无法访问麦克风：' + err.message;
+                statusDiv.style.color = '#F44336';
             }
         });
 
@@ -639,50 +931,172 @@
         });
     }
 
-    const searchInput = document.getElementById('search-input');
-    const questionnaireSelect = document.getElementById('questionnaire-select');
-    const searchResults = document.getElementById('search-results');
-    const questionnaireCodeInput = document.getElementById('questionnaireCode');
+    const cameraStartBtn = document.getElementById('camera-start-btn');
+    const cameraStopBtn = document.getElementById('camera-stop-btn');
+    const cameraStatus = document.getElementById('camera-status');
+    const cameraPreview = document.getElementById('camera-preview');
+    const cameraVideo = document.getElementById('camera-video');
+    const cameraCanvas = document.getElementById('camera-canvas');
+    const postureIndicators = document.getElementById('posture-indicators');
+    const cameraDataInput = document.getElementById('cameraData');
 
-    if (searchInput && questionnaireSelect) {
-        searchInput.addEventListener('input', async (e) => {
-            const keyword = e.target.value.trim();
-            if (keyword.length === 0) {
-                searchResults.style.display = 'none';
-                return;
-            }
-
-            try {
-                const response = await fetch('/search-questionnaires?keyword=' + encodeURIComponent(keyword));
-                const questionnaires = await response.json();
-                
-                if (questionnaires.length > 0) {
-                    searchResults.innerHTML = questionnaires.map(q => 
-                        `<div style="padding: 10px; border-bottom: 1px solid #ddd; cursor: pointer; hover: background-color: #efefef;" 
-                              onclick="selectQuestionnaire('${q.code}', '${q.name}')">${q.name} (${q.totalQuestions}题)</div>`
-                    ).join('');
-                    searchResults.style.display = 'block';
-                } else {
-                    searchResults.innerHTML = '<div style="padding: 10px; color: #999;">未找到匹配的量表</div>';
-                    searchResults.style.display = 'block';
-                }
-            } catch (err) {
-                console.error('搜索失败:', err);
-            }
+    if (cameraStartBtn) {
+        cameraStartBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await startCameraDetection();
         });
 
-        questionnaireSelect.addEventListener('change', (e) => {
-            if (e.target.value) {
-                selectQuestionnaire(e.target.value, e.target.options[e.target.selectedIndex].text);
-            }
+        cameraStopBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            stopCameraDetection();
         });
     }
 
-    function selectQuestionnaire(code, name) {
-        questionnaireCodeInput.value = code;
-        questionnaireSelect.value = code;
-        searchResults.style.display = 'none';
-        searchInput.value = '';
+    async function startCameraDetection() {
+        try {
+            cameraStatus.textContent = '正在初始化摄像头和姿态检测模型...';
+            cameraStatus.style.display = 'block';
+            
+            cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: 640, height: 480 } 
+            });
+            cameraVideo.srcObject = cameraStream;
+            
+            cameraStatus.textContent = '正在加载PoseNet模型...';
+            poseNet = await posenet.load({
+                architecture: 'MobileNetV1',
+                outputStride: 16,
+                inputResolution: { width: 640, height: 480 },
+                multiplier: 0.75
+            });
+            
+            cameraStatus.textContent = '✅ 姿态检测已启动';
+            cameraStatus.style.backgroundColor = 'rgba(76, 175, 80, 0.9)';
+            cameraPreview.style.display = 'block';
+            postureIndicators.style.display = 'flex';
+            cameraStartBtn.style.display = 'none';
+            cameraStopBtn.style.display = 'block';
+            
+            activityData = {
+                movementCount: 0,
+                activityLevel: 0,
+                postureScore: 100,
+                lastPose: null
+            };
+            
+            cameraInterval = setInterval(detectPose, 1000);
+            
+        } catch (err) {
+            cameraStatus.textContent = '❌ 摄像头启动失败：' + err.message;
+            cameraStatus.style.backgroundColor = 'rgba(244, 67, 54, 0.9)';
+            console.error('Camera error:', err);
+        }
+    }
+
+    async function detectPose() {
+        if (!poseNet || !cameraVideo.readyState) return;
+        
+        try {
+            const pose = await poseNet.estimateSinglePose(cameraVideo, {
+                flipHorizontal: false
+            });
+            
+            if (pose && pose.keypoints) {
+                drawPose(pose);
+                analyzePose(pose);
+            }
+        } catch (err) {
+            console.error('Pose detection error:', err);
+        }
+    }
+
+    function drawPose(pose) {
+        const ctx = cameraCanvas.getContext('2d');
+        cameraCanvas.width = cameraVideo.videoWidth;
+        cameraCanvas.height = cameraVideo.videoHeight;
+        
+        ctx.clearRect(0, 0, cameraCanvas.width, cameraCanvas.height);
+        
+        pose.keypoints.forEach(keypoint => {
+            if (keypoint.score > 0.5) {
+                ctx.beginPath();
+                ctx.arc(keypoint.position.x, keypoint.position.y, 5, 0, 2 * Math.PI);
+                ctx.fillStyle = '#667eea';
+                ctx.fill();
+            }
+        });
+        
+        const adjacentKeyPoints = posenet.getAdjacentKeyPoints(pose.keypoints, 0.5);
+        adjacentKeyPoints.forEach(([from, to]) => {
+            ctx.beginPath();
+            ctx.moveTo(from.position.x, from.position.y);
+            ctx.lineTo(to.position.x, to.position.y);
+            ctx.strokeStyle = '#764ba2';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        });
+    }
+
+    function analyzePose(pose) {
+        if (activityData.lastPose) {
+            let totalMovement = 0;
+            pose.keypoints.forEach((kp, i) => {
+                if (kp.score > 0.5 && activityData.lastPose.keypoints[i].score > 0.5) {
+                    const dx = kp.position.x - activityData.lastPose.keypoints[i].position.x;
+                    const dy = kp.position.y - activityData.lastPose.keypoints[i].position.y;
+                    totalMovement += Math.sqrt(dx * dx + dy * dy);
+                }
+            });
+            
+            if (totalMovement > 20) {
+                activityData.movementCount++;
+                activityData.activityLevel = Math.min(100, activityData.activityLevel + 5);
+            } else {
+                activityData.activityLevel = Math.max(0, activityData.activityLevel - 1);
+            }
+            
+            const nose = pose.keypoints.find(kp => kp.part === 'nose');
+            const leftShoulder = pose.keypoints.find(kp => kp.part === 'leftShoulder');
+            const rightShoulder = pose.keypoints.find(kp => kp.part === 'rightShoulder');
+            
+            if (nose && leftShoulder && rightShoulder && 
+                nose.score > 0.5 && leftShoulder.score > 0.5 && rightShoulder.score > 0.5) {
+                const shoulderCenterY = (leftShoulder.position.y + rightShoulder.position.y) / 2;
+                const neckLength = Math.abs(nose.position.y - shoulderCenterY);
+                
+                if (neckLength < 50) {
+                    activityData.postureScore = Math.max(60, activityData.postureScore - 2);
+                } else if (neckLength > 100) {
+                    activityData.postureScore = Math.min(100, activityData.postureScore + 1);
+                }
+            }
+        }
+        
+        activityData.lastPose = pose;
+        
+        document.getElementById('activity-level').textContent = Math.round(activityData.activityLevel) + '%';
+        document.getElementById('posture-score').textContent = Math.round(activityData.postureScore) + '%';
+        document.getElementById('movement-count').textContent = activityData.movementCount;
+        
+        cameraDataInput.value = JSON.stringify(activityData);
+    }
+
+    function stopCameraDetection() {
+        if (cameraInterval) {
+            clearInterval(cameraInterval);
+            cameraInterval = null;
+        }
+        
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+        }
+        
+        cameraStatus.textContent = '摄像头已停止';
+        cameraStatus.style.backgroundColor = 'rgba(108, 117, 125, 0.9)';
+        cameraPreview.style.display = 'none';
+        cameraStartBtn.style.display = 'block';
+        cameraStopBtn.style.display = 'none';
     }
 </script>
 
