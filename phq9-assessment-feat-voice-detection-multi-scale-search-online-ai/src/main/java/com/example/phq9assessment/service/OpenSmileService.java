@@ -251,12 +251,63 @@ public class OpenSmileService {
         }
         
         if (configPath != null && !configPath.trim().isEmpty()) {
-            // 如果配置了config.path，它应该是配置文件目录
-            String normalizedConfigPath = configPath.replace('\\', '/');
-            if (!normalizedConfigPath.endsWith("/")) {
-                normalizedConfigPath += "/";
+            try {
+                // 使用java.nio.Path进行跨平台路径处理
+                Path basePath = Paths.get(configPath.trim());
+                
+                // 构建完整的配置文件路径
+                Path configFilePath;
+                if (!configSubDir.isEmpty()) {
+                    configFilePath = basePath.resolve(configSubDir).resolve(configFileName);
+                } else {
+                    configFilePath = basePath.resolve(configFileName);
+                }
+                
+                String resolvedPath = configFilePath.toString();
+                
+                // 调试日志
+                System.out.println("OpenSMILE配置路径调试:");
+                System.out.println("  原始config.path: " + configPath);
+                System.out.println("  配置类型: " + configType);
+                System.out.println("  配置子目录: " + configSubDir);
+                System.out.println("  配置文件名: " + configFileName);
+                System.out.println("  解析后的路径: " + resolvedPath);
+                System.out.println("  规范化路径: " + configFilePath.normalize().toString());
+                System.out.println("  文件是否存在: " + configFilePath.toFile().exists());
+                
+                // 检查文件是否存在，如果存在则返回
+                if (configFilePath.toFile().exists()) {
+                    return resolvedPath;
+                }
+                
+                // 如果文件不存在，尝试其他可能的路径组合
+                System.out.println("配置文件不存在，尝试其他路径组合...");
+                
+                // 尝试不使用子目录
+                Path directPath = basePath.resolve(configFileName);
+                if (directPath.toFile().exists()) {
+                    System.out.println("找到直接路径: " + directPath.toString());
+                    return directPath.toString();
+                }
+                
+                // 尝试在子目录中查找（递归搜索）
+                if (basePath.toFile().exists() && basePath.toFile().isDirectory()) {
+                    String foundPath = findConfigFileRecursively(basePath.toFile(), configFileName);
+                    if (foundPath != null) {
+                        System.out.println("递归找到配置文件: " + foundPath);
+                        return foundPath;
+                    }
+                }
+                
+                System.out.println("所有路径尝试失败，返回默认构造路径");
+                return resolvedPath;
+                
+            } catch (Exception e) {
+                System.err.println("路径解析异常: " + e.getMessage());
+                e.printStackTrace();
+                // 降级到原始逻辑
+                return configPath.replace('\\', '/') + "/" + configSubDir + configFileName;
             }
-            return normalizedConfigPath + configSubDir + configFileName;
         }
         
         // 使用默认配置文件（通常在openSMILE安装目录下）
@@ -265,28 +316,75 @@ public class OpenSmileService {
             opensmileDir = "";
         }
         
-        // 标准化路径分隔符
-        String normalizedOpensmileDir = opensmileDir.replace('\\', '/');
+        try {
+            // 使用Path类处理默认路径
+            Path opensmileBasePath = Paths.get(opensmileDir);
+            
+            // 尝试多种可能的配置文件位置
+            String[] possibleRelativePaths = {
+                "../config/" + configSubDir + configFileName,
+                "../../config/" + configSubDir + configFileName,
+                "config/" + configSubDir + configFileName,
+                "../share/opensmile/config/" + configSubDir + configFileName,
+                "/usr/local/share/opensmile/config/" + configSubDir + configFileName,
+                "/usr/share/opensmile/config/" + configSubDir + configFileName
+            };
+            
+            for (String relativePath : possibleRelativePaths) {
+                Path candidatePath;
+                if (relativePath.startsWith("/")) {
+                    // 绝对路径
+                    candidatePath = Paths.get(relativePath);
+                } else {
+                    // 相对于opensmile目录的路径
+                    candidatePath = opensmileBasePath.resolve(relativePath);
+                }
+                
+                File configFile = candidatePath.toFile();
+                if (configFile.exists()) {
+                    System.out.println("找到默认配置文件: " + candidatePath.toString());
+                    return candidatePath.toString();
+                }
+            }
+            
+            // 如果都没找到，返回第一个默认路径
+            Path defaultPath = opensmileBasePath.resolve(possibleRelativePaths[0]);
+            System.out.println("返回默认配置路径: " + defaultPath.toString());
+            return defaultPath.toString();
+            
+        } catch (Exception e) {
+            System.err.println("默认路径解析异常: " + e.getMessage());
+            e.printStackTrace();
+            // 降级到原始逻辑
+            return opensmileDir.replace('\\', '/') + "/../config/" + configSubDir + configFileName;
+        }
+    }
+    
+    /**
+     * 递归搜索配置文件
+     */
+    private String findConfigFileRecursively(File dir, String fileName) {
+        if (!dir.exists() || !dir.isDirectory()) {
+            return null;
+        }
         
-        // 尝试多种可能的配置文件位置
-        String[] possiblePaths = {
-            normalizedOpensmileDir + "/../config/" + configSubDir + configFileName,
-            normalizedOpensmileDir + "/../../config/" + configSubDir + configFileName,
-            normalizedOpensmileDir + "/config/" + configSubDir + configFileName,
-            normalizedOpensmileDir + "/../share/opensmile/config/" + configSubDir + configFileName,
-            "/usr/local/share/opensmile/config/" + configSubDir + configFileName,
-            "/usr/share/opensmile/config/" + configSubDir + configFileName
-        };
+        File[] files = dir.listFiles();
+        if (files == null) {
+            return null;
+        }
         
-        // 返回第一个存在的配置文件路径，如果都不存在则返回第一个
-        for (String path : possiblePaths) {
-            File configFile = new File(path);
-            if (configFile.exists()) {
-                return path;
+        for (File file : files) {
+            if (file.isDirectory()) {
+                String found = findConfigFileRecursively(file, fileName);
+                if (found != null) {
+                    return found;
+                }
+            } else if (file.getName().equals(fileName)) {
+                return file.getAbsolutePath();
             }
         }
         
-        return possiblePaths[0]; // 返回默认路径
+        return null;
     }
     
     /**
