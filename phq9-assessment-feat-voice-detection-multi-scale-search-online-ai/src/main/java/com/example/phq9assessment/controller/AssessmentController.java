@@ -12,6 +12,7 @@ import com.example.phq9assessment.service.QuestionnaireService;
 import com.example.phq9assessment.service.RecommendationService;
 import com.example.phq9assessment.service.SentimentAnalysisService;
 import com.example.phq9assessment.service.VoiceDetectionService;
+import com.example.phq9assessment.service.OpenSmileService;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +63,9 @@ public class AssessmentController {
 
     @Autowired
     private VoiceDetectionService voiceDetectionService;
+
+    @Autowired(required = false)
+    private OpenSmileService openSmileService;
 
     @Autowired
     private OnlineAIService onlineAIService;
@@ -438,5 +442,18 @@ public class AssessmentController {
         }
 
         return insight.toString();
+    }
+    
+    /**
+     * 测试OpenSMILE配置
+     */
+    @GetMapping("/test-opensmile")
+    @ResponseBody
+    public String testOpenSmileConfiguration() {
+        if (openSmileService == null) {
+            return "OpenSMILE服务未注入（可能未启用）";
+        }
+        
+        return openSmileService.testConfiguration();
     }
 }
