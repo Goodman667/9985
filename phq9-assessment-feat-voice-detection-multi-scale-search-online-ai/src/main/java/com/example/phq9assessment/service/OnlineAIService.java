@@ -8,6 +8,8 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class OnlineAIService {
@@ -92,6 +94,9 @@ public class OnlineAIService {
                 result.setOnlineAnalysis(true);
                 result.setProvider("OpenAI");
                 result.setSuccessful(true);
+                result.setSummary(aiResponse.length() > 200 ? aiResponse.substring(0, 200) + "..." : aiResponse);
+                result.setRiskLevel("参考本地评估");
+                result.setConfidence(0.6);
             } else {
                 result.setSuccessful(false);
             }
@@ -124,6 +129,25 @@ public class OnlineAIService {
                 result.setOnlineAnalysis(true);
                 result.setProvider("Baidu");
                 result.setSuccessful(true);
+                try {
+                    JsonObject parsed = gson.fromJson(analysisResult, JsonObject.class);
+                    if (parsed != null && parsed.has("items")) {
+                        JsonObject item = parsed.getAsJsonArray("items").get(0).getAsJsonObject();
+                        int sentiment = item.has("sentiment") ? item.get("sentiment").getAsInt() : 1;
+                        double confidence = item.has("confidence") ? item.get("confidence").getAsDouble() : 0.5;
+                        String risk;
+                        if (sentiment == 0) {
+                            risk = "偏负面";
+                        } else if (sentiment == 2) {
+                            risk = "偏正面";
+                        } else {
+                            risk = "中性";
+                        }
+                        result.setRiskLevel(risk);
+                        result.setConfidence(confidence);
+                        result.setSummary("百度NLP情感分类：" + risk + "，置信度：" + String.format("%.2f", confidence));
+                    }
+                } catch (Exception ignore) {}
             } else {
                 result.setSuccessful(false);
             }
@@ -160,7 +184,36 @@ public class OnlineAIService {
         result.setProvider("Local (Fallback)");
         
         SentimentAnalysisService.SentimentAnalysisResult localAnalysis = sentimentAnalysisService.analyzeSentiment(text);
-        result.setEnhancedAnalysis("本地分析结果 - 情感分数: " + localAnalysis.getScore());
+        double score = localAnalysis.getScore();
+        String sentiment = localAnalysis.getSentiment();
+        List<String> signals = new ArrayList<>();
+        signals.add("情感倾向：" + sentiment);
+        if (!localAnalysis.getNegativeWords().isEmpty()) {
+            signals.add("消极词汇：" + String.join("、", localAnalysis.getNegativeWords()));
+        }
+        if (!localAnalysis.getPositiveWords().isEmpty()) {
+            signals.add("积极词汇：" + String.join("、", localAnalysis.getPositiveWords()));
+        }
+        if (!localAnalysis.getKeywords().isEmpty()) {
+            signals.add("关键词：" + String.join("、", localAnalysis.getKeywords()));
+        }
+
+        List<String> actions = new ArrayList<>();
+        if (score < -0.3) {
+            actions.add("建议进行放松训练，如腹式呼吸或冥想");
+            actions.add("保持规律作息并寻求可信赖的支持");
+        } else if (score > 0.3) {
+            actions.add("保持积极的生活习惯，继续记录积极事件");
+        } else {
+            actions.add("关注身心状态，适度安排运动和休息");
+        }
+
+        result.setEnhancedAnalysis("本地分析结果 - 情感分数: " + String.format("%.2f", score));
+        result.setSummary("本地分析：" + sentiment + " (" + String.format("%.2f", score) + ")");
+        result.setRiskLevel(score < -0.3 ? "偏负面" : (score > 0.3 ? "偏正面" : "中性"));
+        result.setConfidence(0.7);
+        result.setSignals(signals);
+        result.setActions(actions);
         result.setSuccessful(true);
         
         return result;
@@ -172,6 +225,11 @@ public class OnlineAIService {
         private String provider;
         private boolean successful;
         private String errorMessage;
+        private String summary;
+        private String riskLevel;
+        private Double confidence;
+        private List<String> signals;
+        private List<String> actions;
 
         public String getEnhancedAnalysis() {
             return enhancedAnalysis;
@@ -211,6 +269,46 @@ public class OnlineAIService {
 
         public void setErrorMessage(String errorMessage) {
             this.errorMessage = errorMessage;
+        }
+
+        public String getSummary() {
+            return summary;
+        }
+
+        public void setSummary(String summary) {
+            this.summary = summary;
+        }
+
+        public String getRiskLevel() {
+            return riskLevel;
+        }
+
+        public void setRiskLevel(String riskLevel) {
+            this.riskLevel = riskLevel;
+        }
+
+        public Double getConfidence() {
+            return confidence;
+        }
+
+        public void setConfidence(Double confidence) {
+            this.confidence = confidence;
+        }
+
+        public List<String> getSignals() {
+            return signals;
+        }
+
+        public void setSignals(List<String> signals) {
+            this.signals = signals;
+        }
+
+        public List<String> getActions() {
+            return actions;
+        }
+
+        public void setActions(List<String> actions) {
+            this.actions = actions;
         }
     }
 

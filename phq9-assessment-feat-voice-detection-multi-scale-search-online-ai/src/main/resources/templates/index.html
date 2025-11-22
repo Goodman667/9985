@@ -416,6 +416,15 @@
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; border-radius: 0; padding: 0; }
+            .badge-container, .btn, .btn-secondary, #voice-record-btn, #voice-stop-btn { display: none !important; }
+            .feature-card { border: 1px solid #e0e0e0; }
+            .chart-container { page-break-inside: avoid; }
+            .alert-box { page-break-inside: avoid; }
+        }
         
         .recommendation-item {
             background: white;
@@ -763,11 +772,38 @@
 
         <div th:if="${result.aiEnhancement != null and result.aiEnhancement.successful}" class="insight-card">
             <h4>🌐 在线AI增强分析</h4>
-            <p>供应商：<strong th:text="${result.aiEnhancement.provider}">-</strong>
+            <p>供应商：<strong id="ai-provider" th:text="${result.aiEnhancement.provider}">-</strong>
                <span th:if="${result.aiEnhancement.onlineAnalysis}" style="color: #4CAF50;">(在线)</span>
                <span th:unless="${result.aiEnhancement.onlineAnalysis}" style="color: #FF9800;">(本地)</span>
             </p>
-            <p th:text="${result.aiEnhancement.enhancedAnalysis}">-</p>
+            <div th:if="${result.aiEnhancement.summary != null}" style="margin: 10px 0; color: #2c3e50;">
+                <strong>摘要：</strong>
+                <span id="ai-summary" th:text="${result.aiEnhancement.summary}">-</span>
+            </div>
+            <div th:if="${result.aiEnhancement.riskLevel != null}" style="margin: 10px 0;">
+                <span class="risk-badge"
+                      th:classappend="${result.aiEnhancement.riskLevel == '偏负面' ? ' risk-high' : (result.aiEnhancement.riskLevel == '偏正面' ? ' risk-low' : ' risk-medium') }"
+                      id="ai-risk" th:text="${result.aiEnhancement.riskLevel}">风险</span>
+                <span th:if="${result.aiEnhancement.confidence != null}" style="margin-left: 10px; color: #667eea;">
+                    置信度：<strong id="ai-confidence" th:text="${#numbers.formatDecimal(result.aiEnhancement.confidence, 1, 2)}">0.00</strong>
+                </span>
+            </div>
+            <div th:if="${result.aiEnhancement.signals != null and not #lists.isEmpty(result.aiEnhancement.signals)}" style="margin: 10px 0;">
+                <strong>信号：</strong>
+                <ul id="ai-signals" style="margin-top: 8px; padding-left: 18px;">
+                    <li th:each="s : ${result.aiEnhancement.signals}" th:text="${s}"></li>
+                </ul>
+            </div>
+            <div th:if="${result.aiEnhancement.actions != null and not #lists.isEmpty(result.aiEnhancement.actions)}" style="margin: 10px 0;">
+                <strong>建议行动：</strong>
+                <ul id="ai-actions" style="margin-top: 8px; padding-left: 18px;">
+                    <li th:each="a : ${result.aiEnhancement.actions}" th:text="${a}"></li>
+                </ul>
+            </div>
+            <div style="margin-top: 10px;">
+                <button type="button" class="btn" onclick="copyAIInsight()">📋 复制AI洞察</button>
+            </div>
+            <p id="ai-full" style="margin-top: 12px; color: #666;" th:text="${result.aiEnhancement.enhancedAnalysis}">-</p>
         </div>
 
         <div th:if="${result.highRisk}" class="alert-box">
@@ -777,7 +813,10 @@
             <p>北京心理危机干预热线：010-82951332</p>
         </div>
 
-        <a href="/" class="btn" style="margin-top: 30px;">🔄 返回，重新测评</a>
+        <div style="display: flex; gap: 10px; margin-top: 30px;">
+            <a href="/" class="btn">🔄 返回，重新测评</a>
+            <button type="button" class="btn btn-secondary" onclick="window.print()">🖨️ 导出PDF报告</button>
+        </div>
     </div>
 </div>
 
@@ -843,6 +882,34 @@
         postureScore: 100,
         lastPose: null
     };
+
+    function copyAIInsight() {
+        try {
+            const provider = document.getElementById('ai-provider')?.innerText || '';
+            const summary = document.getElementById('ai-summary')?.innerText || '';
+            const risk = document.getElementById('ai-risk')?.innerText || '';
+            const confidence = document.getElementById('ai-confidence')?.innerText || '';
+            const full = document.getElementById('ai-full')?.innerText || '';
+            const signals = Array.from(document.querySelectorAll('#ai-signals li')).map(li => '- ' + li.innerText).join('\n');
+            const actions = Array.from(document.querySelectorAll('#ai-actions li')).map(li => '- ' + li.innerText).join('\n');
+
+            const text = [
+                `供应商：${provider}`,
+                summary ? `摘要：${summary}` : '',
+                risk ? `风险：${risk}` : '',
+                confidence ? `置信度：${confidence}` : '',
+                signals ? `信号：\n${signals}` : '',
+                actions ? `建议行动：\n${actions}` : '',
+                full ? `\n详细分析：\n${full}` : ''
+            ].filter(Boolean).join('\n');
+
+            navigator.clipboard.writeText(text).then(() => {
+                alert('AI洞察内容已复制到剪贴板');
+            });
+        } catch (e) {
+            alert('复制失败');
+        }
+    }
 
     const questionnaireSelect = document.getElementById('questionnaire-select');
     const searchInput = document.getElementById('search-input');
