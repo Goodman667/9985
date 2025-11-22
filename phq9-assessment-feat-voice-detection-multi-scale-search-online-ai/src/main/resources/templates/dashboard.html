@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能心理健康仪表板 - 6大高级功能</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .nav-tab {
+            padding: 12px 24px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .nav-tab:hover {
+            background: #e0e0e0;
+        }
+
+        .nav-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .card h3 {
+            color: #764ba2;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .alert-item {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+
+        .alert-item.severity-high {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+
+        .alert-item.severity-critical {
+            background: #721c24;
+            border-left-color: #f5c6cb;
+            color: white;
+        }
+
+        .recommendation-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .recommendation-list li {
+            background: #e7f3ff;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #2196F3;
+        }
+
+        .task-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .task-item.completed {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .button.secondary {
+            background: #6c757d;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+
+        .pattern-badge {
+            display: inline-block;
+            background: #764ba2;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 0.9em;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #2196F3;
+        }
+
+        .risk-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .risk-low { background: #28a745; }
+        .risk-medium { background: #ffc107; }
+        .risk-high { background: #fd7e14; }
+        .risk-critical { background: #dc3545; }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        .slider-container {
+            margin: 15px 0;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 1.1em;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .nav-tabs {
+                flex-direction: column;
+            }
+
+            .nav-tab {
+                width: 100%;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← 返回评估</a>
+        
+        <h1>🧠 智能心理健康仪表板</h1>
+        <p class="subtitle">6大高级AI功能 - 全方位心理健康监测与支持</p>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('emotion-wave')">📊 情绪波动监测</button>
+            <button class="nav-tab" onclick="switchTab('journal')">📔 AI日记系统</button>
+            <button class="nav-tab" onclick="switchTab('relapse')">⚠️ 复发预测</button>
+            <button class="nav-tab" onclick="switchTab('sleep')">😴 睡眠-情绪分析</button>
+            <button class="nav-tab" onclick="switchTab('tasks')">✅ 行为激活计划</button>
+            <button class="nav-tab" onclick="switchTab('quality')">🎯 生活质量仪表板</button>
+        </div>
+
+        <div id="emotion-wave" class="tab-content active">
+            <div class="card">
+                <h2>实时情绪波动监测</h2>
+                <div id="emotion-wave-content" class="loading">加载中...</div>
+            </div>
+        </div>
+
+        <div id="journal" class="tab-content">
+            <div class="card">
+                <h2>AI日记系统与认知模式分析</h2>
+                
+                <div class="form-group">
+                    <label>写下你的想法和感受：</label>
+                    <textarea id="journal-content" rows="6" placeholder="今天我感觉..."></textarea>
+                </div>
+                <button class="button" onclick="submitJournal()">提交日记</button>
+                <button class="button secondary" onclick="analyzeText()">即时分析</button>
+                
+                <div id="journal-analysis" style="margin-top: 20px;"></div>
+                
+                <h3 style="margin-top: 30px;">历史日记</h3>
+                <div id="journal-history"></div>
+            </div>
+        </div>
+
+        <div id="relapse" class="tab-content">
+            <div class="card">
+                <h2>复发风险预测模型</h2>
+                <div id="relapse-content" class="loading">加载中...</div>
+            </div>
+        </div>
+
+        <div id="sleep" class="tab-content">
+            <div class="card">
+                <h2>睡眠-情绪关联智能分析</h2>
+                <div id="sleep-content" class="loading">加载中...</div>
+            </div>
+        </div>
+
+        <div id="tasks" class="tab-content">
+            <div class="card">
+                <h2>AI驱动的行为激活计划</h2>
+                <button class="button" onclick="generateTasks()">生成个性化任务</button>
+                <div id="tasks-content"></div>
+            </div>
+        </div>
+
+        <div id="quality" class="tab-content">
+            <div class="card">
+                <h2>生活质量多维仪表板</h2>
+                
+                <button class="button" onclick="showQualityForm()">记录今日生活质量</button>
+                
+                <div id="quality-form" style="display: none; margin-top: 20px;">
+                    <h3>请为以下维度评分（0-10分）</h3>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>睡眠质量</span>
+                            <span id="sleepQuality-value">5</span>
+                        </div>
+                        <input type="range" id="sleepQuality" min="0" max="10" value="5" 
+                               oninput="updateSliderValue('sleepQuality')">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>社交互动</span>
+                            <span id="socialInteraction-value">5</span>
+                        </div>
+                        <input type="range" id="socialInteraction" min="0" max="10" value="5"
+                               oninput="updateSliderValue('socialInteraction')">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>身体活动</span>
+                            <span id="physicalActivity-value">5</span>
+                        </div>
+                        <input type="range" id="physicalActivity" min="0" max="10" value="5"
+                               oninput="updateSliderValue('physicalActivity')">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>工作效率</span>
+                            <span id="workProductivity-value">5</span>
+                        </div>
+                        <input type="range" id="workProductivity" min="0" max="10" value="5"
+                               oninput="updateSliderValue('workProductivity')">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>生活满意度</span>
+                            <span id="satisfaction-value">5</span>
+                        </div>
+                        <input type="range" id="satisfaction" min="0" max="10" value="5"
+                               oninput="updateSliderValue('satisfaction')">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>人际关系</span>
+                            <span id="relationships-value">5</span>
+                        </div>
+                        <input type="range" id="relationships" min="0" max="10" value="5"
+                               oninput="updateSliderValue('relationships')">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>自我照顾</span>
+                            <span id="selfCare-value">5</span>
+                        </div>
+                        <input type="range" id="selfCare" min="0" max="10" value="5"
+                               oninput="updateSliderValue('selfCare')">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>愉快活动</span>
+                            <span id="enjoyableActivities-value">5</span>
+                        </div>
+                        <input type="range" id="enjoyableActivities" min="0" max="10" value="5"
+                               oninput="updateSliderValue('enjoyableActivities')">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>备注（可选）：</label>
+                        <textarea id="quality-notes" rows="3" placeholder="今天的特别记录..."></textarea>
+                    </div>
+                    
+                    <button class="button" onclick="submitQualityMetrics()">提交记录</button>
+                </div>
+                
+                <div id="quality-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        const userId = /*[[${userId}]]*/ 'demo_user';
+        let emotionChart = null;
+        let qualityChart = null;
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            if (tabName === 'emotion-wave') {
+                loadEmotionWave();
+            } else if (tabName === 'journal') {
+                loadJournalHistory();
+            } else if (tabName === 'relapse') {
+                loadRelapsePrediction();
+            } else if (tabName === 'sleep') {
+                loadSleepAnalysis();
+            } else if (tabName === 'tasks') {
+                loadTaskHistory();
+            } else if (tabName === 'quality') {
+                loadQualityDashboard();
+            }
+        }
+
+        async function loadEmotionWave() {
+            try {
+                const response = await fetch(`/api/emotion-wave?userId=${userId}`);
+                const data = await response.json();
+
+                let html = '';
+
+                if (data.status === 'NO_DATA') {
+                    html = '<p class="info-box">暂无评估数据，请先完成心理健康评估。</p>';
+                } else {
+                    html += '<div class="grid">';
+                    html += `<div class="stat-box">
+                        <div class="stat-label">平均分数</div>
+                        <div class="stat-value">${data.mean ? data.mean.toFixed(1) : 'N/A'}</div>
+                    </div>`;
+                    html += `<div class="stat-box">
+                        <div class="stat-label">标准差</div>
+                        <div class="stat-value">${data.stdDev ? data.stdDev.toFixed(1) : 'N/A'}</div>
+                    </div>`;
+                    html += `<div class="stat-box">
+                        <div class="stat-label">最高分</div>
+                        <div class="stat-value">${data.max || 'N/A'}</div>
+                    </div>`;
+                    html += `<div class="stat-box">
+                        <div class="stat-label">最低分</div>
+                        <div class="stat-value">${data.min || 'N/A'}</div>
+                    </div>`;
+                    html += '</div>';
+
+                    if (data.currentRisk) {
+                        const riskClass = getRiskClass(data.currentRisk.level);
+                        html += `<div class="card">
+                            <h3>当前风险评估</h3>
+                            <p><span class="risk-indicator ${riskClass}"></span>
+                            <strong>${data.currentRisk.description}</strong></p>
+                            <p>当前评分: ${data.currentRisk.score}</p>
+                        </div>`;
+                    }
+
+                    if (data.patterns && data.patterns.length > 0) {
+                        html += '<div class="card"><h3>检测到的模式</h3>';
+                        data.patterns.forEach(pattern => {
+                            html += `<span class="pattern-badge">${pattern}</span>`;
+                        });
+                        html += '</div>';
+                    }
+
+                    if (data.dataPoints && data.dataPoints.length > 0) {
+                        html += '<div class="card"><h3>情绪波动图</h3>';
+                        html += '<div class="chart-container"><canvas id="emotionChart"></canvas></div>';
+                        html += '</div>';
+                    }
+                }
+
+                document.getElementById('emotion-wave-content').innerHTML = html;
+
+                if (data.dataPoints && data.dataPoints.length > 0) {
+                    renderEmotionChart(data.dataPoints);
+                }
+
+                await loadAlerts();
+            } catch (error) {
+                console.error('Error loading emotion wave:', error);
+                document.getElementById('emotion-wave-content').innerHTML = 
+                    '<p class="info-box">加载失败，请稍后重试。</p>';
+            }
+        }
+
+        function getRiskClass(level) {
+            if (!level) return 'risk-low';
+            const levelUpper = level.toUpperCase();
+            if (levelUpper.includes('CRITICAL') || levelUpper.includes('SEVERE')) return 'risk-critical';
+            if (levelUpper.includes('HIGH')) return 'risk-high';
+            if (levelUpper.includes('MEDIUM') || levelUpper.includes('MODERATE')) return 'risk-medium';
+            return 'risk-low';
+        }
+
+        function renderEmotionChart(dataPoints) {
+            const ctx = document.getElementById('emotionChart');
+            if (!ctx) return;
+
+            if (emotionChart) {
+                emotionChart.destroy();
+            }
+
+            emotionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dataPoints.map(p => new Date(p.timestamp).toLocaleDateString()),
+                    datasets: [{
+                        label: '评分',
+                        data: dataPoints.map(p => p.score),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 30
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadAlerts() {
+            try {
+                const response = await fetch(`/api/alerts/unread?userId=${userId}`);
+                const alerts = await response.json();
+
+                if (alerts.length > 0) {
+                    let html = '<div class="card"><h3>⚠️ 未读告警</h3>';
+                    alerts.forEach(alert => {
+                        const severityClass = alert.severity ? `severity-${alert.severity.toLowerCase()}` : '';
+                        html += `<div class="alert-item ${severityClass}">
+                            <strong>${alert.alertType}</strong>
+                            <p>${alert.alertMessage}</p>
+                            <p><em>建议: ${alert.recommendation}</em></p>
+                            <small>${new Date(alert.createdAt).toLocaleString()}</small>
+                        </div>`;
+                    });
+                    html += '</div>';
+                    document.getElementById('emotion-wave-content').innerHTML += html;
+                }
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+            }
+        }
+
+        async function submitJournal() {
+            const content = document.getElementById('journal-content').value.trim();
+            if (!content) {
+                alert('请输入日记内容');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/journal', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `userId=${userId}&content=${encodeURIComponent(content)}&entryType=TEXT`
+                });
+
+                if (response.ok) {
+                    alert('日记已保存并分析！');
+                    document.getElementById('journal-content').value = '';
+                    loadJournalHistory();
+                }
+            } catch (error) {
+                console.error('Error submitting journal:', error);
+                alert('提交失败，请重试');
+            }
+        }
+
+        async function analyzeText() {
+            const content = document.getElementById('journal-content').value.trim();
+            if (!content) {
+                alert('请输入要分析的内容');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/journal/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `content=${encodeURIComponent(content)}`
+                });
+
+                const data = await response.json();
+                displayAnalysis(data);
+            } catch (error) {
+                console.error('Error analyzing text:', error);
+                alert('分析失败，请重试');
+            }
+        }
+
+        function displayAnalysis(data) {
+            let html = '<div class="card">';
+            html += '<h3>认知模式分析结果</h3>';
+
+            if (data.patterns && data.patterns.length > 0) {
+                html += '<h4>识别到的认知扭曲：</h4>';
+                data.patterns.forEach(pattern => {
+                    html += `<div class="info-box">
+                        <strong>${pattern.description}</strong> (置信度: ${(pattern.confidence * 100).toFixed(0)}%)
+                        <p><em>证据: ${pattern.evidence ? pattern.evidence.join('; ') : 'N/A'}</em></p>
+                        <p><strong>CBT挑战:</strong> ${pattern.cbtChallenge}</p>
+                        <p><strong>重构建议:</strong> ${pattern.reframingSuggestion}</p>
+                    </div>`;
+                });
+            } else {
+                html += '<p class="info-box">未检测到明显的认知扭曲模式，保持良好！</p>';
+            }
+
+            if (data.cbtSuggestions && data.cbtSuggestions.length > 0) {
+                html += '<h4>CBT建议：</h4><ul class="recommendation-list">';
+                data.cbtSuggestions.forEach(suggestion => {
+                    html += `<li>${suggestion}</li>`;
+                });
+                html += '</ul>';
+            }
+
+            html += '</div>';
+            document.getElementById('journal-analysis').innerHTML = html;
+        }
+
+        async function loadJournalHistory() {
+            try {
+                const response = await fetch(`/api/journal?userId=${userId}`);
+                const entries = await response.json();
+
+                let html = '';
+                if (entries.length === 0) {
+                    html = '<p class="info-box">暂无日记记录</p>';
+                } else {
+                    entries.forEach(entry => {
+                        html += `<div class="card">
+                            <strong>${new Date(entry.createdAt).toLocaleString()}</strong>
+                            <p>${entry.content}</p>`;
+                        
+                        if (entry.cbtSuggestions) {
+                            html += `<details>
+                                <summary>CBT建议</summary>
+                                <p>${entry.cbtSuggestions}</p>
+                            </details>`;
+                        }
+                        html += '</div>';
+                    });
+                }
+
+                document.getElementById('journal-history').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading journal history:', error);
+            }
+        }
+
+        async function loadRelapsePrediction() {
+            try {
+                const response = await fetch(`/api/relapse-prediction?userId=${userId}&forecastDays=30`);
+                const data = await response.json();
+
+                let html = '';
+
+                if (data.status === 'INSUFFICIENT_DATA') {
+                    html = '<p class="info-box">需要至少3次评估记录才能进行预测</p>';
+                } else {
+                    if (data.riskAssessment) {
+                        const riskClass = getRiskClass(data.riskAssessment.level);
+                        html += `<div class="card">
+                            <h3>复发风险评估</h3>
+                            <p><span class="risk-indicator ${riskClass}"></span>
+                            <strong>${data.riskAssessment.description}</strong></p>
+                            <p>风险评分: ${data.riskAssessment.score}/100</p>
+                        </div>`;
+                    }
+
+                    if (data.predictions && data.predictions.length > 0) {
+                        html += '<div class="card"><h3>未来预测</h3><table style="width: 100%; border-collapse: collapse;">';
+                        html += '<tr><th>天数</th><th>预测分数</th><th>预测等级</th><th>日期</th></tr>';
+                        data.predictions.forEach(pred => {
+                            html += `<tr>
+                                <td>${pred.daysAhead}天后</td>
+                                <td>${pred.predictedScore}</td>
+                                <td>${pred.predictedLevel}</td>
+                                <td>${pred.date}</td>
+                            </tr>`;
+                        });
+                        html += '</table></div>';
+                    }
+
+                    if (data.riskFactors && data.riskFactors.factors && data.riskFactors.factors.length > 0) {
+                        html += '<div class="card"><h3>识别的风险因素</h3><ul>';
+                        data.riskFactors.factors.forEach(factor => {
+                            html += `<li>${factor}</li>`;
+                        });
+                        html += '</ul></div>';
+                    }
+
+                    if (data.preventionStrategies && data.preventionStrategies.length > 0) {
+                        html += '<div class="card"><h3>预防策略</h3><ul class="recommendation-list">';
+                        data.preventionStrategies.forEach(strategy => {
+                            html += `<li>${strategy}</li>`;
+                        });
+                        html += '</ul></div>';
+                    }
+                }
+
+                document.getElementById('relapse-content').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading relapse prediction:', error);
+                document.getElementById('relapse-content').innerHTML = 
+                    '<p class="info-box">加载失败，请稍后重试。</p>';
+            }
+        }
+
+        async function loadSleepAnalysis() {
+            try {
+                const response = await fetch(`/api/sleep-mood-correlation?userId=${userId}`);
+                const data = await response.json();
+
+                let html = '';
+
+                if (data.status === 'INSUFFICIENT_DATA') {
+                    html = '<p class="info-box">需要PSQI和PHQ-9/GAD-7评估数据</p>';
+                } else {
+                    html += `<div class="grid">
+                        <div class="stat-box">
+                            <div class="stat-label">相关系数</div>
+                            <div class="stat-value">${data.correlationCoefficient || 'N/A'}</div>
+                            <div class="stat-label">${data.correlationStrength}</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">配对数据</div>
+                            <div class="stat-value">${data.pairedDataCount || 0}</div>
+                        </div>
+                    </div>`;
+
+                    if (data.improvementImpact) {
+                        html += `<div class="card">
+                            <h3>睡眠改善预期影响</h3>
+                            <p>${data.improvementImpact.impactDescription}</p>
+                            <p>当前平均睡眠分数: ${data.improvementImpact.currentAvgSleepScore}</p>
+                            <p>当前平均情绪分数: ${data.improvementImpact.currentAvgMoodScore}</p>
+                            <p>预期睡眠改善: ${data.improvementImpact.estimatedSleepImprovement}分</p>
+                            <p>预期情绪改善: ${data.improvementImpact.estimatedMoodImprovement}分</p>
+                        </div>`;
+                    }
+
+                    if (data.optimalSleepSchedule) {
+                        html += '<div class="card"><h3>最优睡眠时间表</h3>';
+                        html += `<p>建议就寝时间: ${data.optimalSleepSchedule.recommendedBedtime}</p>`;
+                        html += `<p>建议起床时间: ${data.optimalSleepSchedule.recommendedWakeTime}</p>`;
+                        html += `<p>建议睡眠时长: ${data.optimalSleepSchedule.recommendedSleepDuration}</p>`;
+                        if (data.optimalSleepSchedule.advice) {
+                            html += '<ul class="recommendation-list">';
+                            data.optimalSleepSchedule.advice.forEach(advice => {
+                                html += `<li>${advice}</li>`;
+                            });
+                            html += '</ul>';
+                        }
+                        html += '</div>';
+                    }
+
+                    if (data.recommendations && data.recommendations.length > 0) {
+                        html += '<div class="card"><h3>睡眠改善建议</h3><ul class="recommendation-list">';
+                        data.recommendations.forEach(rec => {
+                            html += `<li>${rec}</li>`;
+                        });
+                        html += '</ul></div>';
+                    }
+                }
+
+                document.getElementById('sleep-content').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading sleep analysis:', error);
+                document.getElementById('sleep-content').innerHTML = 
+                    '<p class="info-box">加载失败，请稍后重试。</p>';
+            }
+        }
+
+        async function generateTasks() {
+            try {
+                const response = await fetch(`/api/behavioral-tasks/generate?userId=${userId}&count=5`);
+                const tasks = await response.json();
+
+                let html = '<div class="card"><h3>为你推荐的任务</h3>';
+                tasks.forEach(task => {
+                    html += `<div class="task-item">
+                        <h4>${task.name}</h4>
+                        <p>${task.description}</p>
+                        <p>类别: ${task.category} | 难度: ${task.difficultyLevel} | 预计时长: ${task.estimatedDuration}</p>
+                        <button class="button" onclick="acceptTask('${task.name}', '${task.description}', '${task.difficultyLevel}', '${task.category}')">
+                            接受任务
+                        </button>
+                    </div>`;
+                });
+                html += '</div>';
+
+                document.getElementById('tasks-content').innerHTML = html;
+                loadTaskHistory();
+            } catch (error) {
+                console.error('Error generating tasks:', error);
+            }
+        }
+
+        async function acceptTask(name, description, difficulty, category) {
+            try {
+                const response = await fetch('/api/behavioral-tasks/assign', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `userId=${userId}&taskName=${encodeURIComponent(name)}&taskDescription=${encodeURIComponent(description)}&difficultyLevel=${difficulty}&category=${encodeURIComponent(category)}`
+                });
+
+                if (response.ok) {
+                    alert('任务已添加到你的计划中！');
+                    loadTaskHistory();
+                }
+            } catch (error) {
+                console.error('Error accepting task:', error);
+            }
+        }
+
+        async function loadTaskHistory() {
+            try {
+                const response = await fetch(`/api/behavioral-tasks/history?userId=${userId}`);
+                const data = await response.json();
+
+                let html = '<div class="card"><h3>任务历史与统计</h3>';
+                html += `<div class="grid">
+                    <div class="stat-box">
+                        <div class="stat-label">总任务数</div>
+                        <div class="stat-value">${data.totalTasks || 0}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">已完成</div>
+                        <div class="stat-value">${data.completedTasks || 0}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">完成率</div>
+                        <div class="stat-value">${data.completionRate || 0}%</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">平均评分</div>
+                        <div class="stat-value">${data.averageRating || 'N/A'}</div>
+                    </div>
+                </div>`;
+
+                if (data.recentTasks && data.recentTasks.length > 0) {
+                    html += '<h4>最近任务</h4>';
+                    data.recentTasks.forEach(task => {
+                        const completedClass = task.completed ? 'completed' : '';
+                        html += `<div class="task-item ${completedClass}">
+                            <strong>${task.name}</strong>
+                            <p>类别: ${task.category} | ${task.completed ? '✅ 已完成' : '⏳ 进行中'}</p>
+                            ${!task.completed ? `<button class="button" onclick="completeTaskPrompt(${task.id})">标记完成</button>` : ''}
+                        </div>`;
+                    });
+                }
+
+                html += '</div>';
+                document.getElementById('tasks-content').innerHTML += html;
+            } catch (error) {
+                console.error('Error loading task history:', error);
+            }
+        }
+
+        function completeTaskPrompt(taskId) {
+            const rating = prompt('请为此任务打分（1-5）：');
+            if (rating && rating >= 1 && rating <= 5) {
+                const feedback = prompt('任务反馈（可选）：') || '';
+                completeTaskById(taskId, parseInt(rating), feedback);
+            }
+        }
+
+        async function completeTaskById(taskId, rating, feedback) {
+            try {
+                const response = await fetch(`/api/behavioral-tasks/${taskId}/complete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `taskId=${taskId}&rating=${rating}&feedback=${encodeURIComponent(feedback)}`
+                });
+
+                if (response.ok) {
+                    alert('任务已标记为完成！');
+                    loadTaskHistory();
+                }
+            } catch (error) {
+                console.error('Error completing task:', error);
+            }
+        }
+
+        function showQualityForm() {
+            document.getElementById('quality-form').style.display = 'block';
+        }
+
+        function updateSliderValue(dimension) {
+            const slider = document.getElementById(dimension);
+            const display = document.getElementById(dimension + '-value');
+            display.textContent = slider.value;
+        }
+
+        async function submitQualityMetrics() {
+            const params = new URLSearchParams();
+            params.append('userId', userId);
+            params.append('sleepQuality', document.getElementById('sleepQuality').value);
+            params.append('socialInteraction', document.getElementById('socialInteraction').value);
+            params.append('physicalActivity', document.getElementById('physicalActivity').value);
+            params.append('workProductivity', document.getElementById('workProductivity').value);
+            params.append('satisfaction', document.getElementById('satisfaction').value);
+            params.append('relationships', document.getElementById('relationships').value);
+            params.append('selfCare', document.getElementById('selfCare').value);
+            params.append('enjoyableActivities', document.getElementById('enjoyableActivities').value);
+            
+            const notes = document.getElementById('quality-notes').value;
+            if (notes) params.append('notes', notes);
+
+            try {
+                const response = await fetch('/api/life-quality/record', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: params.toString()
+                });
+
+                if (response.ok) {
+                    alert('生活质量记录已保存！');
+                    document.getElementById('quality-form').style.display = 'none';
+                    loadQualityDashboard();
+                }
+            } catch (error) {
+                console.error('Error submitting quality metrics:', error);
+                alert('提交失败，请重试');
+            }
+        }
+
+        async function loadQualityDashboard() {
+            try {
+                const response = await fetch(`/api/life-quality/dashboard?userId=${userId}`);
+                const data = await response.json();
+
+                let html = '';
+
+                if (data.status === 'NO_DATA') {
+                    html = '<p class="info-box">暂无生活质量数据，请点击上方按钮开始记录。</p>';
+                } else {
+                    if (data.currentScores) {
+                        html += '<div class="card"><h3>当前生活质量评分</h3>';
+                        html += `<p>总体评分: <strong>${data.overallScore}</strong></p>`;
+                        html += '<div class="chart-container"><canvas id="qualityRadarChart"></canvas></div>';
+                        html += '</div>';
+                    }
+
+                    if (data.keyInsights && data.keyInsights.length > 0) {
+                        html += '<div class="card"><h3>关键洞察</h3><ul class="recommendation-list">';
+                        data.keyInsights.forEach(insight => {
+                            html += `<li>${insight}</li>`;
+                        });
+                        html += '</ul></div>';
+                    }
+
+                    if (data.recommendations && data.recommendations.length > 0) {
+                        html += '<div class="card"><h3>改善建议</h3><ul class="recommendation-list">';
+                        data.recommendations.forEach(rec => {
+                            html += `<li>${rec}</li>`;
+                        });
+                        html += '</ul></div>';
+                    }
+
+                    if (data.milestones) {
+                        html += '<div class="card"><h3>里程碑</h3>';
+                        if (data.milestones.consistency) {
+                            html += `<p>🎉 ${data.milestones.consistency}</p>`;
+                        }
+                        if (data.milestones.improvement) {
+                            html += `<p>📈 ${data.milestones.improvement}</p>`;
+                        }
+                        if (data.milestones.highestOverallScore) {
+                            html += `<p>⭐ 最高总体评分: ${data.milestones.highestOverallScore}</p>`;
+                        }
+                        html += '</div>';
+                    }
+                }
+
+                document.getElementById('quality-content').innerHTML = html;
+
+                if (data.currentScores && document.getElementById('qualityRadarChart')) {
+                    renderQualityChart(data.currentScores);
+                }
+            } catch (error) {
+                console.error('Error loading quality dashboard:', error);
+                document.getElementById('quality-content').innerHTML = 
+                    '<p class="info-box">加载失败，请稍后重试。</p>';
+            }
+        }
+
+        function renderQualityChart(scores) {
+            const ctx = document.getElementById('qualityRadarChart');
+            if (!ctx) return;
+
+            if (qualityChart) {
+                qualityChart.destroy();
+            }
+
+            qualityChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['睡眠质量', '社交互动', '身体活动', '工作效率', '生活满意度', '人际关系', '自我照顾', '愉快活动'],
+                    datasets: [{
+                        label: '生活质量评分',
+                        data: [
+                            scores.sleepQuality || 0,
+                            scores.socialInteraction || 0,
+                            scores.physicalActivity || 0,
+                            scores.workProductivity || 0,
+                            scores.satisfaction || 0,
+                            scores.relationships || 0,
+                            scores.selfCare || 0,
+                            scores.enjoyableActivities || 0
+                        ],
+                        backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                        borderColor: '#667eea',
+                        pointBackgroundColor: '#667eea',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#667eea'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 10
+                        }
+                    }
+                }
+            });
+        }
+
+        window.onload = function() {
+            loadEmotionWave();
+        };
+    </script>
+</body>
+</html>

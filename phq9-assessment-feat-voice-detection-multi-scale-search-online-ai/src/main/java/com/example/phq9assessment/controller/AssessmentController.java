@@ -69,6 +69,27 @@ public class AssessmentController {
 
     @Autowired
     private OnlineAIService onlineAIService;
+    
+    @Autowired
+    private AlertingService alertingService;
+    
+    @Autowired
+    private EmotionWaveDetectionService emotionWaveDetectionService;
+    
+    @Autowired
+    private CognitivePatternAnalyzer cognitivePatternAnalyzer;
+    
+    @Autowired
+    private RelapsePredictionModel relapsePredictionModel;
+    
+    @Autowired
+    private SleepMoodCorrelationAnalyzer sleepMoodCorrelationAnalyzer;
+    
+    @Autowired
+    private BehavioralActivationTaskGenerator behavioralActivationTaskGenerator;
+    
+    @Autowired
+    private QualityOfLifeDashboard qualityOfLifeDashboard;
 
     @GetMapping("/")
     public String showForm(Model model) {
@@ -456,5 +477,168 @@ public class AssessmentController {
         }
         
         return openSmileService.testConfiguration();
+    }
+    
+    @GetMapping("/api/emotion-wave")
+    @ResponseBody
+    public Map<String, Object> getEmotionWave(@RequestParam String userId) {
+        return emotionWaveDetectionService.analyzeEmotionWave(userId);
+    }
+    
+    @GetMapping("/api/emotion-timeline")
+    @ResponseBody
+    public List<Map<String, Object>> getEmotionTimeline(@RequestParam String userId, 
+                                                        @RequestParam(defaultValue = "30") int days) {
+        return emotionWaveDetectionService.getEmotionTimeline(userId, days);
+    }
+    
+    @GetMapping("/api/alerts")
+    @ResponseBody
+    public List<com.example.phq9assessment.entity.EmotionAlert> getAlerts(@RequestParam String userId) {
+        return alertingService.getAllAlerts(userId);
+    }
+    
+    @GetMapping("/api/alerts/unread")
+    @ResponseBody
+    public List<com.example.phq9assessment.entity.EmotionAlert> getUnreadAlerts(@RequestParam String userId) {
+        return alertingService.getUnreadAlerts(userId);
+    }
+    
+    @PostMapping("/api/alerts/{alertId}/read")
+    @ResponseBody
+    public com.example.phq9assessment.entity.EmotionAlert markAlertAsRead(@RequestParam Long alertId) {
+        return alertingService.markAsRead(alertId);
+    }
+    
+    @PostMapping("/api/journal")
+    @ResponseBody
+    public com.example.phq9assessment.entity.JournalEntry createJournalEntry(
+            @RequestParam String userId,
+            @RequestParam String content,
+            @RequestParam(defaultValue = "TEXT") String entryType) {
+        return cognitivePatternAnalyzer.createJournalEntry(userId, content, entryType);
+    }
+    
+    @GetMapping("/api/journal")
+    @ResponseBody
+    public List<com.example.phq9assessment.entity.JournalEntry> getJournalEntries(@RequestParam String userId) {
+        return cognitivePatternAnalyzer.getUserJournalEntries(userId);
+    }
+    
+    @PostMapping("/api/journal/analyze")
+    @ResponseBody
+    public Map<String, Object> analyzeJournalContent(@RequestParam String content) {
+        return cognitivePatternAnalyzer.analyzeJournalEntry(content);
+    }
+    
+    @GetMapping("/api/cognitive-patterns/timeline")
+    @ResponseBody
+    public Map<String, Object> getCognitivePatternTimeline(@RequestParam String userId) {
+        return cognitivePatternAnalyzer.getPatternTimeline(userId);
+    }
+    
+    @GetMapping("/api/relapse-prediction")
+    @ResponseBody
+    public Map<String, Object> predictRelapseRisk(@RequestParam String userId,
+                                                   @RequestParam(defaultValue = "30") int forecastDays) {
+        return relapsePredictionModel.predictRelapseRisk(userId, forecastDays);
+    }
+    
+    @GetMapping("/api/relapse-prediction/trend")
+    @ResponseBody
+    public Map<String, Object> getHistoricalTrend(@RequestParam String userId) {
+        return relapsePredictionModel.getHistoricalTrend(userId);
+    }
+    
+    @GetMapping("/api/sleep-mood-correlation")
+    @ResponseBody
+    public Map<String, Object> analyzeSleepMoodCorrelation(@RequestParam String userId) {
+        return sleepMoodCorrelationAnalyzer.analyzeSleepMoodCorrelation(userId);
+    }
+    
+    @GetMapping("/api/behavioral-tasks/generate")
+    @ResponseBody
+    public List<Map<String, Object>> generateBehavioralTasks(@RequestParam String userId,
+                                                              @RequestParam(defaultValue = "5") int count) {
+        return behavioralActivationTaskGenerator.generatePersonalizedTasks(userId, count);
+    }
+    
+    @PostMapping("/api/behavioral-tasks/assign")
+    @ResponseBody
+    public com.example.phq9assessment.entity.CompletedBehavioralTask assignTask(
+            @RequestParam String userId,
+            @RequestParam String taskName,
+            @RequestParam String taskDescription,
+            @RequestParam String difficultyLevel,
+            @RequestParam String category,
+            @RequestParam(required = false) Double moodBefore) {
+        return behavioralActivationTaskGenerator.assignTask(userId, taskName, taskDescription, 
+                                                           difficultyLevel, category, moodBefore);
+    }
+    
+    @PostMapping("/api/behavioral-tasks/{taskId}/complete")
+    @ResponseBody
+    public com.example.phq9assessment.entity.CompletedBehavioralTask completeTask(
+            @RequestParam Long taskId,
+            @RequestParam Integer rating,
+            @RequestParam(required = false) String feedback,
+            @RequestParam(required = false) Double moodAfter) {
+        return behavioralActivationTaskGenerator.completeTask(taskId, rating, feedback, moodAfter);
+    }
+    
+    @GetMapping("/api/behavioral-tasks/history")
+    @ResponseBody
+    public Map<String, Object> getTaskHistory(@RequestParam String userId) {
+        return behavioralActivationTaskGenerator.getTaskHistory(userId);
+    }
+    
+    @GetMapping("/api/behavioral-tasks/top-performing")
+    @ResponseBody
+    public List<Map<String, Object>> getTopPerformingTasks(@RequestParam String userId,
+                                                            @RequestParam(defaultValue = "5") int limit) {
+        return behavioralActivationTaskGenerator.getTopPerformingTasks(userId, limit);
+    }
+    
+    @PostMapping("/api/life-quality/record")
+    @ResponseBody
+    public com.example.phq9assessment.entity.LifeQualityMetrics recordQualityOfLife(
+            @RequestParam String userId,
+            @RequestParam Double sleepQuality,
+            @RequestParam Double socialInteraction,
+            @RequestParam Double physicalActivity,
+            @RequestParam Double workProductivity,
+            @RequestParam Double satisfaction,
+            @RequestParam Double relationships,
+            @RequestParam Double selfCare,
+            @RequestParam Double enjoyableActivities,
+            @RequestParam(required = false) String notes) {
+        
+        Map<String, Double> scores = new HashMap<>();
+        scores.put("sleepQuality", sleepQuality);
+        scores.put("socialInteraction", socialInteraction);
+        scores.put("physicalActivity", physicalActivity);
+        scores.put("workProductivity", workProductivity);
+        scores.put("satisfaction", satisfaction);
+        scores.put("relationships", relationships);
+        scores.put("selfCare", selfCare);
+        scores.put("enjoyableActivities", enjoyableActivities);
+        
+        return qualityOfLifeDashboard.recordMetrics(userId, scores, notes);
+    }
+    
+    @GetMapping("/api/life-quality/dashboard")
+    @ResponseBody
+    public Map<String, Object> getLifeQualityDashboard(@RequestParam String userId) {
+        return qualityOfLifeDashboard.getDashboardData(userId);
+    }
+    
+    @GetMapping("/dashboard")
+    public String showDashboard(Model model, HttpSession session) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) {
+            userId = "demo_user";
+        }
+        model.addAttribute("userId", userId);
+        return "dashboard";
     }
 }
