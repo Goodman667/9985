@@ -229,7 +229,8 @@ public class AssessmentController {
 
         if (voiceResult != null) {
             record.setVoiceEmotionScore(voiceResult.getEmotionScore());
-            record.setVoiceFeatures(gson.toJson(voiceResult.getFeatures()));
+            // 存储完整的语音分析结果，包含增强的声学特征
+            record.setVoiceFeatures(gson.toJson(voiceResult));
         }
 
         assessmentRecordRepository.save(record);

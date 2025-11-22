@@ -671,15 +671,94 @@
 
         <div th:if="${result.voiceAnalysis != null}" class="insight-card">
             <h4>🎤 语音情感分析</h4>
+            
+            <!-- OpenSMILE状态显示 -->
             <div th:if="${result.voiceAnalysis.usingOpenSmile}" 
                  style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
                 <strong>✨ OpenSMILE专业分析</strong> - 
                 <span th:text="${result.voiceAnalysis.openSmileConfigType}">-</span> 
                 (<span th:text="${result.voiceAnalysis.featureCount}">-</span>个特征)
             </div>
-            <p>情感分数：<strong th:text="${#numbers.formatDecimal(result.voiceAnalysis.emotionScore, 1, 2)}">0</strong></p>
-            <p>情感类别：<strong th:text="${result.voiceAnalysis.emotionCategory}">-</strong></p>
-            <p>识别置信度：<strong th:text="${#numbers.formatDecimal(result.voiceAnalysis.confidence * 100, 1, 1)} + '%'">-</strong></p>
+            
+            <!-- 基础情感分析 -->
+            <div style="margin-bottom: 20px;">
+                <p>情感分数：<strong th:text="${#numbers.formatDecimal(result.voiceAnalysis.emotionScore, 1, 2)}">0</strong></p>
+                <p>情感类别：<strong th:text="${result.voiceAnalysis.emotionCategory}">-</strong></p>
+                <p>识别置信度：<strong th:text="${#numbers.formatDecimal(result.voiceAnalysis.confidence * 100, 1, 1)} + '%'">-</strong></p>
+            </div>
+            
+            <!-- 声学特征卡片 -->
+            <div th:if="${result.voiceAnalysis.acousticSummary != null and !#maps.isEmpty(result.voiceAnalysis.acousticSummary)}" 
+                 style="margin-bottom: 20px;">
+                <h5 style="color: #667eea; margin-bottom: 10px;">📊 声学特征</h5>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
+                    <span th:each="entry : ${result.voiceAnalysis.acousticSummary}" 
+                          style="background: #e8f0fe; color: #1565c0; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 500;">
+                        <span th:text="${entry.key}">特征</span>: 
+                        <span th:text="${#numbers.formatDecimal(entry.value, 1, 3)}">0.0</span>
+                    </span>
+                </div>
+            </div>
+            
+            <!-- 情感指标 -->
+            <div th:if="${result.voiceAnalysis.emotionalIndicators != null and !#maps.isEmpty(result.voiceAnalysis.emotionalIndicators)}" 
+                 style="margin-bottom: 20px;">
+                <h5 style="color: #667eea; margin-bottom: 10px;">😊 情感指标</h5>
+                <div style="background: #f8f9ff; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea;">
+                    <div th:each="entry : ${result.voiceAnalysis.emotionalIndicators}" style="margin-bottom: 8px;">
+                        <strong th:text="${entry.key}">指标</strong>:
+                        <div style="background: #e0e7ff; height: 8px; border-radius: 4px; margin-top: 4px; overflow: hidden;">
+                            <div th:style="'width: ' + ${entry.value * 100} + '%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; transition: width 0.3s ease;'"
+                                 style="height: 100%;"></div>
+                        </div>
+                        <small style="color: #666;" th:text="${#numbers.formatDecimal(entry.value * 100, 1, 1)} + '%'">0%</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 音频统计 -->
+            <div th:if="${result.voiceAnalysis.audioStats != null and !#maps.isEmpty(result.voiceAnalysis.audioStats)}" 
+                 style="margin-bottom: 20px;">
+                <h5 style="color: #667eea; margin-bottom: 10px;">📈 音频统计</h5>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                    <div th:each="entry : ${result.voiceAnalysis.audioStats}" 
+                         style="background: #f5f5f5; padding: 10px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;" th:text="${entry.key}">统计项</div>
+                        <div style="font-weight: bold; color: #333;">
+                            <span th:if="${#numbers.formatDecimal(entry.value, 1, 1) != null}" 
+                                  th:text="${#numbers.formatDecimal(entry.value, 1, 1)}">0</span>
+                            <span th:unless="${#numbers.formatDecimal(entry.value, 1, 1) != null}" 
+                                  th:text="${entry.value}">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 详细分析数据（可展开） -->
+            <div th:if="${result.voiceAnalysis.topFeatures != null and !#maps.isEmpty(result.voiceAnalysis.topFeatures)}">
+                <button onclick="toggleDetailedAnalysis()" 
+                        style="background: none; border: 2px solid #667eea; color: #667eea; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; margin-bottom: 10px;">
+                    🔍 详细分析数据
+                </button>
+                <div id="detailed-analysis" style="display: none; margin-top: 15px;">
+                    <h6 style="color: #667eea; margin-bottom: 10px;">Top 声学特征</h6>
+                    <div style="max-height: 300px; overflow-y: auto; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
+                        <div th:each="entry : ${result.voiceAnalysis.topFeatures}" 
+                             style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e0e0e0; font-size: 13px;">
+                            <span style="color: #333; font-family: monospace;" th:text="${entry.key}">feature_name</span>
+                            <span style="color: #667eea; font-weight: bold;" th:text="${#numbers.formatDecimal(entry.value, 1, 6)}">0.000000</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Fallback提示 -->
+            <div th:unless="${result.voiceAnalysis.usingOpenSmile}" 
+                 style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 12px; margin-top: 15px;">
+                <small style="color: #856404;">
+                    ℹ️ 当前显示为基础情感分析结果。启用OpenSMILE可获得更详细的声学特征分析。
+                </small>
+            </div>
         </div>
 
         <div th:if="${result.aiEnhancement != null and result.aiEnhancement.successful}" class="insight-card">
@@ -1097,6 +1176,17 @@
         cameraPreview.style.display = 'none';
         cameraStartBtn.style.display = 'block';
         cameraStopBtn.style.display = 'none';
+    }
+
+    function toggleDetailedAnalysis() {
+        const detailedAnalysis = document.getElementById('detailed-analysis');
+        if (detailedAnalysis) {
+            if (detailedAnalysis.style.display === 'none') {
+                detailedAnalysis.style.display = 'block';
+            } else {
+                detailedAnalysis.style.display = 'none';
+            }
+        }
     }
 </script>
 

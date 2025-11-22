@@ -65,7 +65,8 @@ public class AssessmentRecord {
     @Column(name = "questionnaire_code")
     private String questionnaireCode;
     
-    @Column(name = "voice_features", length = 1000)
+    @Lob
+    @Column(name = "voice_features", columnDefinition = "TEXT")
     private String voiceFeatures;
     
     @Column(name = "voice_emotion_score")
