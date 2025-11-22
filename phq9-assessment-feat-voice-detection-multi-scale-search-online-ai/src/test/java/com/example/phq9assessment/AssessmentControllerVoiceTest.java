@@ -3,7 +3,10 @@ package com.example.phq9assessment;
 import com.example.phq9assessment.entity.AssessmentRecord;
 import com.example.phq9assessment.model.AssessmentResult;
 import com.example.phq9assessment.repository.AssessmentRecordRepository;
+import com.example.phq9assessment.repository.QuestionRepository;
+import com.example.phq9assessment.repository.QuestionnaireRepository;
 import com.example.phq9assessment.service.*;
+import com.example.phq9assessment.controller.AssessmentController;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,7 +28,11 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(AssessmentController.class)
+@WebMvcTest(value = AssessmentController.class, excludeAutoConfiguration = {
+        org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration.class
+})
 @AutoConfigureWebMvc
 class AssessmentControllerVoiceTest {
 
@@ -34,6 +41,12 @@ class AssessmentControllerVoiceTest {
 
     @MockBean
     private AssessmentRecordRepository assessmentRecordRepository;
+
+    @MockBean
+    private QuestionnaireRepository questionnaireRepository;
+
+    @MockBean
+    private QuestionRepository questionRepository;
 
     @MockBean
     private SentimentAnalysisService sentimentAnalysisService;
@@ -64,6 +77,24 @@ class AssessmentControllerVoiceTest {
         // Mock questionnaire service to return default questions
         when(questionnaireService.getAllActiveQuestionnaires()).thenReturn(new ArrayList<>());
         when(questionnaireService.getQuestionsForQuestionnaire(anyString())).thenReturn(new ArrayList<>());
+
+        // Provide safe defaults for services used by controller
+        when(sentimentAnalysisService.analyzeSentiment(anyString())).thenReturn(
+                new SentimentAnalysisService.SentimentAnalysisResult(0.0, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), "neutral")
+        );
+        when(machineLearningService.calculateRiskScore(any(int[].class), anyString(), anyDouble())).thenReturn(0.2);
+        when(machineLearningService.clusterUser(any(int[].class), anyDouble())).thenReturn(
+                new MachineLearningService.ClusterResult("low_risk", "建议")
+        );
+        when(machineLearningService.analyzeTrend(any())).thenReturn(
+                new MachineLearningService.TrendAnalysis("stable", 0.0, null)
+        );
+        when(anomalyDetectionService.detectAnomalies(any(int[].class))).thenReturn(
+                new AnomalyDetectionService.AnomalyDetectionResult(false, new ArrayList<>())
+        );
+        when(recommendationService.generateRecommendations(any(int[].class), anyInt(), anyString())).thenReturn(new ArrayList<>());
+        when(onlineAIService.enhanceSentimentAnalysis(anyString())).thenReturn(new OnlineAIService.AIEnhancementResult());
+        when(assessmentRecordRepository.save(any(AssessmentRecord.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
@@ -93,7 +124,6 @@ class AssessmentControllerVoiceTest {
         
         Map<String, Object> audioStats = new HashMap<>();
         audioStats.put("特征总数", 88);
-        audioStats.put("配置类型", "eGeMAPSv02");
         mockVoiceResult.setAudioStats(audioStats);
         
         Map<String, Double> topFeatures = new HashMap<>();
@@ -102,15 +132,15 @@ class AssessmentControllerVoiceTest {
 
         when(voiceDetectionService.analyzeVoiceFeatures(anyString())).thenReturn(mockVoiceResult);
         when(sentimentAnalysisService.analyzeSentiment(anyString())).thenReturn(
-            new SentimentAnalysisService.SentimentAnalysisResult());
+            new SentimentAnalysisService.SentimentAnalysisResult(0.0, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), "neutral"));
         when(machineLearningService.calculateRiskScore(any(int[].class), anyString(), anyDouble()))
             .thenReturn(0.2);
         when(machineLearningService.clusterUser(any(int[].class), anyDouble()))
-            .thenReturn(new MachineLearningService.ClusterResult());
+            .thenReturn(new MachineLearningService.ClusterResult("low_risk", "建议"));
         when(machineLearningService.analyzeTrend(any()))
-            .thenReturn(new MachineLearningService.TrendAnalysis());
+            .thenReturn(new MachineLearningService.TrendAnalysis("stable", 0.0, null));
         when(anomalyDetectionService.detectAnomalies(any(int[].class)))
-            .thenReturn(new AnomalyDetectionService.AnomalyDetectionResult());
+            .thenReturn(new AnomalyDetectionService.AnomalyDetectionResult(false, new ArrayList<>()));
         when(recommendationService.generateRecommendations(any(int[].class), anyInt(), anyString()))
             .thenReturn(new ArrayList<>());
         when(onlineAIService.enhanceSentimentAnalysis(anyString()))
@@ -155,7 +185,10 @@ class AssessmentControllerVoiceTest {
         assertFalse(voiceFeaturesJson.isEmpty());
         
         // Parse the JSON to verify structure
-        Map<String, Object> voiceFeaturesMap = objectMapper.readValue(voiceFeaturesJson, Map.class);
+        Map<String, Object> voiceFeaturesMap = objectMapper.readValue(
+                voiceFeaturesJson,
+                new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {}
+        );
         assertNotNull(voiceFeaturesMap.get("acousticSummary"));
         assertNotNull(voiceFeaturesMap.get("emotionalIndicators"));
         assertNotNull(voiceFeaturesMap.get("audioStats"));
@@ -238,15 +271,15 @@ class AssessmentControllerVoiceTest {
         
         when(voiceDetectionService.analyzeVoiceFeatures(anyString())).thenReturn(null);
         when(sentimentAnalysisService.analyzeSentiment(anyString())).thenReturn(
-            new SentimentAnalysisService.SentimentAnalysisResult());
+            new SentimentAnalysisService.SentimentAnalysisResult(0.0, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), "neutral"));
         when(machineLearningService.calculateRiskScore(any(int[].class), anyString(), anyDouble()))
             .thenReturn(0.2);
         when(machineLearningService.clusterUser(any(int[].class), anyDouble()))
-            .thenReturn(new MachineLearningService.ClusterResult());
+            .thenReturn(new MachineLearningService.ClusterResult("low_risk", "建议"));
         when(machineLearningService.analyzeTrend(any()))
-            .thenReturn(new MachineLearningService.TrendAnalysis());
+            .thenReturn(new MachineLearningService.TrendAnalysis("stable", 0.0, null));
         when(anomalyDetectionService.detectAnomalies(any(int[].class)))
-            .thenReturn(new AnomalyDetectionService.AnomalyDetectionResult());
+            .thenReturn(new AnomalyDetectionService.AnomalyDetectionResult(false, new ArrayList<>()));
         when(recommendationService.generateRecommendations(any(int[].class), anyInt(), anyString()))
             .thenReturn(new ArrayList<>());
         when(onlineAIService.enhanceSentimentAnalysis(anyString()))

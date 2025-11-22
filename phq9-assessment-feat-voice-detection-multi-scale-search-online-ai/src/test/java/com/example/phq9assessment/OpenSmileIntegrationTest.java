@@ -70,19 +70,27 @@ class OpenSmileIntegrationTest {
         assertEquals(88, result.getFeatureCount());
         
         // Test new enhanced fields
-        result.setAcousticSummary(java.util.Map.of("基频均值", 50.0));
+        java.util.Map<String, Double> acousticSummary = new java.util.HashMap<>();
+        acousticSummary.put("基频均值", 50.0);
+        result.setAcousticSummary(acousticSummary);
         assertNotNull(result.getAcousticSummary());
         assertEquals(50.0, result.getAcousticSummary().get("基频均值"));
         
-        result.setEmotionalIndicators(java.util.Map.of("活跃度", 0.6));
+        java.util.Map<String, Double> emotionalIndicators = new java.util.HashMap<>();
+        emotionalIndicators.put("活跃度", 0.6);
+        result.setEmotionalIndicators(emotionalIndicators);
         assertNotNull(result.getEmotionalIndicators());
         assertEquals(0.6, result.getEmotionalIndicators().get("活跃度"));
         
-        result.setAudioStats(java.util.Map.of("特征总数", 88));
+        java.util.Map<String, Object> audioStats = new java.util.HashMap<>();
+        audioStats.put("特征总数", 88);
+        result.setAudioStats(audioStats);
         assertNotNull(result.getAudioStats());
         assertEquals(88, result.getAudioStats().get("特征总数"));
         
-        result.setTopFeatures(java.util.Map.of("test_feature", 1.0));
+        java.util.Map<String, Double> topFeatures = new java.util.HashMap<>();
+        topFeatures.put("test_feature", 1.0);
+        result.setTopFeatures(topFeatures);
         assertNotNull(result.getTopFeatures());
         assertEquals(1.0, result.getTopFeatures().get("test_feature"));
     }

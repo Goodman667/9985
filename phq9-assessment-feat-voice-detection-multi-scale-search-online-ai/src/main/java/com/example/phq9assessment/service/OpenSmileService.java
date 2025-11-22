@@ -121,7 +121,14 @@ public class OpenSmileService {
         File tempFile = File.createTempFile("audio_", ".wav");
         
         // 如果是纯PCM数据，需要添加WAV头
-        byte[] wavData = addWavHeader(audioBytes);
+        byte[] wavData;
+        if (audioBytes != null && audioBytes.length >= 12 &&
+                audioBytes[0] == 'R' && audioBytes[1] == 'I' && audioBytes[2] == 'F' && audioBytes[3] == 'F' &&
+                audioBytes[8] == 'W' && audioBytes[9] == 'A' && audioBytes[10] == 'V' && audioBytes[11] == 'E') {
+            wavData = audioBytes;
+        } else {
+            wavData = addWavHeader(audioBytes);
+        }
         
         try (FileOutputStream fos = new FileOutputStream(tempFile)) {
             fos.write(wavData);
@@ -402,45 +409,64 @@ public class OpenSmileService {
      */
     private Map<String, Double> parseOpenSmileOutput(File csvFile) {
         Map<String, Double> features = new HashMap<String, Double>();
-        
         try (BufferedReader reader = new BufferedReader(new FileReader(csvFile))) {
             String headerLine = reader.readLine();
             if (headerLine == null) {
                 return features;
             }
-            
-            // 解析特征名称
-            String[] headers = headerLine.split(";");
-            
-            // 读取特征值
-            String dataLine = reader.readLine();
-            if (dataLine == null) {
+            String delimiter;
+            if (headerLine.contains(";")) {
+                delimiter = ";";
+            } else if (headerLine.contains(",")) {
+                delimiter = ",";
+            } else if (headerLine.contains("\t")) {
+                delimiter = "\t";
+            } else {
+                delimiter = ";";
+            }
+            String[] headers = headerLine.split(java.util.regex.Pattern.quote(delimiter));
+
+            String line;
+            String lastDataLine = null;
+            while ((line = reader.readLine()) != null) {
+                String trimmed = line.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                lastDataLine = trimmed;
+            }
+            if (lastDataLine == null) {
                 return features;
             }
-            
-            String[] values = dataLine.split(";");
-            
-            // 跳过前面的元数据列（如name, frameTime等）
-            int startIndex = Math.min(2, values.length);
-            
+
+            String[] values = lastDataLine.split(java.util.regex.Pattern.quote(delimiter));
+            int startIndex = 0;
+            for (int i = 0; i < Math.min(headers.length, values.length); i++) {
+                String h = headers[i].trim().toLowerCase();
+                if (!("name".equals(h) || "frametime".equals(h))) {
+                    startIndex = i;
+                    break;
+                }
+            }
             for (int i = startIndex; i < Math.min(headers.length, values.length); i++) {
+                String featureName = headers[i].trim();
+                String raw = values[i].trim();
+                if (raw.startsWith("\"") && raw.endsWith("\"")) {
+                    raw = raw.substring(1, raw.length() - 1);
+                }
+                if (raw.equalsIgnoreCase("nan") || raw.equalsIgnoreCase("inf") || raw.equalsIgnoreCase("-inf")) {
+                    continue;
+                }
                 try {
-                    String featureName = headers[i].trim();
-                    double featureValue = Double.parseDouble(values[i].trim());
-                    
-                    // 处理NaN和无穷大
+                    double featureValue = Double.parseDouble(raw);
                     if (!Double.isNaN(featureValue) && !Double.isInfinite(featureValue)) {
                         features.put(featureName, featureValue);
                     }
-                } catch (NumberFormatException e) {
-                    // 跳过无法解析的值
+                } catch (NumberFormatException ignored) {
                 }
             }
-            
-        } catch (IOException e) {
-            // 返回空特征
+        } catch (IOException ignored) {
         }
-        
         return features;
     }
     

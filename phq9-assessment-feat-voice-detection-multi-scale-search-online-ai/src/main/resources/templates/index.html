@@ -725,9 +725,9 @@
                          style="background: #f5f5f5; padding: 10px; border-radius: 6px; text-align: center;">
                         <div style="font-size: 12px; color: #666; margin-bottom: 4px;" th:text="${entry.key}">统计项</div>
                         <div style="font-weight: bold; color: #333;">
-                            <span th:if="${#numbers.formatDecimal(entry.value, 1, 1) != null}" 
+                            <span th:if="${entry.value instanceof T(java.lang.Number)}" 
                                   th:text="${#numbers.formatDecimal(entry.value, 1, 1)}">0</span>
-                            <span th:unless="${#numbers.formatDecimal(entry.value, 1, 1) != null}" 
+                            <span th:unless="${entry.value instanceof T(java.lang.Number)}" 
                                   th:text="${entry.value}">-</span>
                         </div>
                     </div>
